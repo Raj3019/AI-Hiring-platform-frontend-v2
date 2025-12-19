@@ -74,6 +74,7 @@ export default function RecruiterProfilePage() {
     githubUrl: user?.githubUrl || '',
     preferences: user?.preferences || { industries: [], jobTypes: [] },
     resumeFileURL: user?.resumeFileURL || '',
+    profilePicture: user?.profilePicture || '',
     createdAt: user?.createdAt || ''
   });
 
@@ -113,6 +114,7 @@ export default function RecruiterProfilePage() {
       industriesString: apiData.preferences?.industries?.join(', ') || '',
       jobTypesString: apiData.preferences?.jobTypes?.join(', ') || '',
       resumeFileURL: apiData.resumeFileURL || '',
+      profilePicture: apiData.profilePicture || '',
       createdAt: apiData.createdAt || ''
     }));
   };
@@ -215,6 +217,33 @@ export default function RecruiterProfilePage() {
     if (user) syncFormData(user);
   };
 
+  const handleProfilePicUpload = async (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const formData = new FormData();
+      formData.append('profilePicture', file);
+      setIsSaving(true);
+      try {
+        const res = await recruiterAPI.updateProfilePicture(formData);
+        const picUrl = res.profilePicture || res.data?.profilePicture;
+        if (picUrl) {
+          updateProfile({ profilePicture: picUrl });
+          setFormData(prev => ({ ...prev, profilePicture: picUrl }));
+          setSuccessMessage('Profile picture updated!');
+        }
+      } catch (error) {
+        setSuccessMessage('Failed to upload image.');
+      } finally {
+        setIsSaving(false);
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+    }
+  };
+
+  const handleFileSelection = (inputId) => {
+    document.getElementById(inputId).click();
+  };
+
   const formatMemberSince = (dateString) => {
     if (!dateString) return 'Dec 2024';
     const date = new Date(dateString);
@@ -250,7 +279,21 @@ export default function RecruiterProfilePage() {
         <div className="md:w-1/3">
           <NeoCard className="sticky top-24 text-center border-4">
             <div className="w-32 h-32 mx-auto bg-gray-200 dark:bg-zinc-800 rounded-full mb-4 border-4 border-neo-black dark:border-white overflow-hidden relative group">
-               <img src={user?.profilePicture || user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Recruiter"} alt="Profile" className="w-full h-full object-cover" />
+               <img 
+                 src={user?.profilePicture || user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Recruiter"} 
+                 alt="Profile" 
+                 className="w-full h-full object-cover"
+                 onError={(e) => {
+                   e.target.onerror = null;
+                   e.target.src = "https://api.dicebear.com/7.x/avataaars/svg?seed=Recruiter";
+                 }}
+               />
+               {isEditing && (
+                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => handleFileSelection('profile-pic-input')}>
+                       <span className="text-white text-xs font-bold uppercase">Change</span>
+                   </div>
+               )}
+               <input type="file" id="profile-pic-input" className="hidden" accept="image/*" onChange={handleProfilePicUpload} />
             </div>
             <h2 className="text-2xl font-black uppercase dark:text-white">{formData.fullName}</h2>
             <p className="font-mono text-gray-500 dark:text-gray-400 mb-2">{formData.currentRole || 'Recruiter'}</p>

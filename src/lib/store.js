@@ -14,7 +14,7 @@ export const useAuthStore = create(
       login: async (email, password, role) => {
         set({ isLoading: true, error: null });
         try {
-          const api = role === 'recruiter' ? recruiterAPI : employeeAPI;
+          const api = (role?.toLowerCase() === 'recruiter' || role?.toLowerCase() === 'recuter') ? recruiterAPI : employeeAPI;
           const response = await api.login(email, password);
 
           console.log('Login response:', response);
@@ -56,13 +56,14 @@ export const useAuthStore = create(
           }
 
           // Determine the correct role: Employee for candidates, Recuter for recruiters (matching backend typo)
-          // The profile endpoint doesn't return the user type, so use the login context
-          const userRole = role === 'recruiter' ? 'Recuter' : 'Employee';
+          const userRole = (role?.toLowerCase() === 'recruiter' || role?.toLowerCase() === 'recuter') ? 'Recuter' : 'Employee';
 
           // Build user object carefully - ensure role is not overwritten
-          const profileInfo = profileData?.data || {};
-          // Remove any 'role' field from profile data that might be job title
-          const { role: _, ...cleanProfileInfo } = profileInfo;
+          // Normalize profile data: handle cases where it's in response.data or response directly
+          const profileInfo = profileData?.data || profileData?.profile || profileData?.user || profileData || {};
+
+          // Remove success, message and any 'role' field from profile data that might be job title
+          const { success: _s, message: _m, role: _, ...cleanProfileInfo } = profileInfo;
 
           const user = {
             ...cleanProfileInfo,
@@ -85,7 +86,7 @@ export const useAuthStore = create(
       signup: async (email, password, confirmPassword, role) => {
         set({ isLoading: true, error: null });
         try {
-          const api = role === 'recruiter' ? recruiterAPI : employeeAPI;
+          const api = (role?.toLowerCase() === 'recruiter' || role?.toLowerCase() === 'recuter') ? recruiterAPI : employeeAPI;
           const response = await api.signup(email, password, confirmPassword);
 
           // Store token in localStorage
@@ -128,22 +129,29 @@ export const useAuthStore = create(
       fetchProfile: async (role) => {
         set({ isLoading: true, error: null });
         try {
-          const api = role === 'recruiter' ? recruiterAPI : employeeAPI;
+          const api = (role?.toLowerCase() === 'recruiter' || role?.toLowerCase() === 'recuter') ? recruiterAPI : employeeAPI;
           const response = await api.getProfile();
 
           // Preserve the original role - don't let backend override it
           const currentRole = get().user?.role;
 
+          // Normalize profile data: handle cases where it's in response.data or response directly
+          // response is the body (axiosResponse.data)
+          const profileData = response.data || response.profile || response.user || response;
+
+          // Remove success and message if they are in the spread
+          const { success: _s, message: _m, ...cleanData } = profileData;
+
           set((state) => ({
             user: {
               ...state.user,
-              ...response.data,
+              ...cleanData,
               recentApplicationJob: response.recentApplicationJob,
               role: currentRole || role
             },
             isLoading: false,
           }));
-          return { success: true, data: response.data };
+          return { success: true, data: cleanData };
         } catch (error) {
           const errorMessage = error.response?.data?.message || 'Failed to fetch profile.';
           set({ error: errorMessage, isLoading: false });
@@ -157,7 +165,7 @@ export const useAuthStore = create(
           // Get current user role to call the correct logout endpoint
           const state = useAuthStore.getState();
           const role = state.user?.role?.toLowerCase();
-          const api = (role === 'recruiter') ? recruiterAPI : employeeAPI;
+          const api = (role === 'recruiter' || role === 'recuter') ? recruiterAPI : employeeAPI;
 
           // Call logout API (don't wait for success, proceed with local logout)
           await api.logout().catch(() => { });

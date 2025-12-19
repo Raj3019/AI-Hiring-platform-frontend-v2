@@ -133,6 +133,15 @@ export const recruiterAPI = {
     const response = await api.put(`/api/recuter/profile/${id}`, data);
     return response.data;
   },
+
+  updateProfilePicture: async (formData) => {
+    const response = await api.post('/api/recuter/profile/picture', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
 // Jobs API endpoints
