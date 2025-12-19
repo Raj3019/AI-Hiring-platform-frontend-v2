@@ -89,9 +89,9 @@ const NavbarContent = () => {
     if (!user) {
       return (
         <>
-          <Link href="/" className={baseClass}>HOME</Link>
-          <Link href="/#pricing" className={baseClass}>PRICING</Link>
-          <Link href="/#features" className={baseClass}>FEATURES</Link>
+          <Link href={isRecruiterMode ? "/?mode=recruiter" : "/"} className={baseClass}>HOME</Link>
+          <Link href={isRecruiterMode ? "/?mode=recruiter#pricing" : "/#pricing"} className={baseClass}>PRICING</Link>
+          <Link href={isRecruiterMode ? "/?mode=recruiter#features" : "/#features"} className={baseClass}>FEATURES</Link>
           
           <div className={mobile ? "my-4" : "inline-block ml-2"}>
             <NeoButton 
@@ -105,7 +105,7 @@ const NavbarContent = () => {
           
           <div className={mobile ? "mt-2" : "inline-block ml-2"}>
              <Link href={`/login${isRecruiterMode ? '?mode=recruiter' : ''}`} onClick={() => setIsMobileMenuOpen(false)}>
-                <NeoButton className={mobile ? 'w-full' : ''}>LOGIN</NeoButton>
+                <NeoButton className={`${mobile ? 'w-full' : ''} ${isRecruiterMode ? 'bg-neo-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black' : ''}`}>LOGIN</NeoButton>
              </Link>
           </div>
         </>
@@ -139,7 +139,7 @@ const NavbarContent = () => {
     <nav className="border-b-4 border-neo-black dark:border-white bg-white dark:bg-[#1E1E1E] sticky top-0 z-40 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-20 items-center">
-          <Link href={user ? (user.role === 'recruiter' ? '/recruiter/dashboard' : '/candidate/dashboard') : '/'} className="flex items-center cursor-pointer">
+          <Link href={user ? (user.role === 'recruiter' ? '/recruiter/dashboard' : '/candidate/dashboard') : (isRecruiterMode ? '/?mode=recruiter' : '/')} className="flex items-center cursor-pointer">
             <div className={`w-8 h-8 ${isRecruiterMode ? 'bg-neo-orange' : 'bg-neo-yellow'} border-2 border-neo-black dark:border-white mr-2 shadow-neo-sm dark:shadow-[2px_2px_0px_0px_#ffffff]`}></div>
             <span className="font-black text-2xl tracking-tighter uppercase text-neo-black dark:text-white">
               Neo<span className={isRecruiterMode ? 'text-neo-orange' : 'text-neo-blue'}>Hire</span>
@@ -157,7 +157,7 @@ const NavbarContent = () => {
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
                   className="flex items-center gap-2 border-2 border-neo-black dark:border-white p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors shadow-neo-sm dark:shadow-[2px_2px_0px_0px_#ffffff] active:translate-y-[2px] active:shadow-none bg-white dark:bg-zinc-900"
                 >
-                  <img src={user.profilePicture || user.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="User" className="w-8 h-8 border border-neo-black dark:border-white object-cover" />
+                  <img src={user.profilePicture || user.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Recruiter"} alt="User" className="w-8 h-8 border border-neo-black dark:border-white object-cover" />
                   <span className="font-bold text-sm hidden lg:block mr-1 uppercase text-neo-black dark:text-white">{user.fullName || user.name || 'USER'}</span>
                   <svg className="w-4 h-4 text-neo-black dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                 </button>

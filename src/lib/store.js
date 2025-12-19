@@ -82,11 +82,11 @@ export const useAuthStore = create(
       },
 
       // Signup function - calls backend API
-      signup: async (name, email, password, role) => {
+      signup: async (email, password, confirmPassword, role) => {
         set({ isLoading: true, error: null });
         try {
           const api = role === 'recruiter' ? recruiterAPI : employeeAPI;
-          const response = await api.signup(name, email, password);
+          const response = await api.signup(email, password, confirmPassword);
 
           // Store token in localStorage
           let token = response.token || response.accessToken;
@@ -104,24 +104,12 @@ export const useAuthStore = create(
             localStorage.setItem('authToken', token);
           }
 
-
-
           // Small delay to ensure token is stored
           await new Promise(resolve => setTimeout(resolve, 100));
 
-          // Fetch user profile after successful signup
-          const profileData = await api.getProfile();
-
-          // Determine the correct role: Employee for candidates, Recuter for recruiters
+          // For new accounts, we set basic user info
           const userRole = role === 'recruiter' ? 'Recuter' : 'Employee';
-
-          // Build user object carefully - ensure role is not overwritten
-          const profileInfo = profileData?.data || {};
-          const { role: _, ...cleanProfileInfo } = profileInfo;
-
           const user = {
-            ...cleanProfileInfo,
-            name,
             email,
             role: userRole,
             isAuthenticated: true,

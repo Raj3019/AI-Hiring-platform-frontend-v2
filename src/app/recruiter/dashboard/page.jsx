@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import { NeoCard, NeoButton } from '@/components/ui/neo';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
 import { jobsAPI } from '@/lib/api';
@@ -19,7 +20,9 @@ const generateCandidateInsights = async (candidates) => {
 const RecruiterDashboard = () => {
   const { user, fetchProfile } = useAuthStore();
   const [insight, setInsight] = useState('Analyzing candidate data...');
-  const [recentPostings, setRecentPostings] = useState([]);
+  const [allPostings, setAllPostings] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 4;
   const [stats, setStats] = useState({
       activeJobs: 0,
       totalApplicants: 0,
@@ -51,7 +54,7 @@ const RecruiterDashboard = () => {
             createdAt: new Date(j.createdAt || Date.now())
         })).sort((a, b) => b.createdAt - a.createdAt);
 
-        setRecentPostings(mappedJobs.slice(0, 4));
+        setAllPostings(mappedJobs);
 
         const activeJobs = user.jobs.filter(j => j.status === 'Active' || j.status === 'active').length;
         const totalApplicants = user.jobs.reduce((acc, j) => acc + (j.applications?.length || j.appliedBy?.length || 0), 0);
@@ -71,12 +74,15 @@ const RecruiterDashboard = () => {
         setStats({
             activeJobs,
             totalApplicants,
-            avgMatchScore: scoreCount > 0 ? Math.round(totalScore / scoreCount) : 64
+            avgMatchScore: scoreCount > 0 ? Math.round(totalScore / scoreCount) : 0
         });
     }
   }, [user]);
 
-  const jobStats = recentPostings.map(j => ({
+  const paginatedPostings = allPostings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(allPostings.length / itemsPerPage);
+
+  const jobStats = allPostings.map(j => ({
       name: j.role.length > 10 ? j.role.substring(0, 10) + '...' : j.role,
       applicants: j.applicants
   }));
@@ -132,30 +138,35 @@ const RecruiterDashboard = () => {
           <NeoCard className="border-4 shadow-neo-lg h-[400px] flex flex-col">
              <div className="flex justify-between items-center mb-6">
                  <h3 className="text-2xl font-black uppercase dark:text-white">Application Volume</h3>
+                 {jobStats.length > 4 && (
+                     <span className="text-[10px] font-mono font-bold bg-neo-blue text-white px-2 py-0.5 border-2 border-black uppercase">Scroll to see more →</span>
+                 )}
              </div>
-             <div className="flex-grow w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={jobStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <XAxis 
-                            dataKey="name" 
-                            tick={{fontFamily: 'Space Grotesk', fontWeight: 'bold', fontSize: 12, fill: '#888'}} 
-                            axisLine={false} 
-                            tickLine={false} 
-                            dy={10}
-                        />
-                        <Tooltip 
-                            cursor={{fill: '#000', opacity: 0.05}} 
-                            contentStyle={{
-                                border: '3px solid black', 
-                                boxShadow: '4px 4px 0px 0px black', 
-                                fontFamily: 'Space Mono', 
-                                fontWeight: 'bold',
-                                borderRadius: '0px'
-                            }}
-                        />
-                        <Bar dataKey="applicants" fill="#FF6B6B" stroke="black" strokeWidth={3} radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                </ResponsiveContainer>
+             <div className="flex-grow w-full overflow-x-auto overflow-y-hidden custom-scrollbar">
+                <div style={{ minWidth: Math.max(100, jobStats.length * 20) + '%' }}>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={jobStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <XAxis 
+                                dataKey="name" 
+                                tick={{fontFamily: 'Space Grotesk', fontWeight: 'bold', fontSize: 12, fill: '#888'}} 
+                                axisLine={false} 
+                                tickLine={false} 
+                                dy={10}
+                            />
+                            <Tooltip 
+                                cursor={{fill: '#000', opacity: 0.05}} 
+                                contentStyle={{
+                                    border: '3px solid black', 
+                                    boxShadow: '4px 4px 0px 0px black', 
+                                    fontFamily: 'Space Mono', 
+                                    fontWeight: 'bold',
+                                    borderRadius: '0px'
+                                }}
+                            />
+                            <Bar dataKey="applicants" fill="#FF6B6B" stroke="black" strokeWidth={3} radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
              </div>
           </NeoCard>
 
@@ -202,7 +213,7 @@ const RecruiterDashboard = () => {
                        </tr>
                    </thead>
                    <tbody>
-                       {recentPostings.map((job) => (
+                       {paginatedPostings.map((job) => (
                            <tr key={job.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50/30 dark:hover:bg-zinc-800 transition-colors group">
                                <td className="py-6 px-8">
                                    <div className="font-black text-lg text-neo-black dark:text-white">{job.role}</div>
@@ -234,6 +245,50 @@ const RecruiterDashboard = () => {
                    </tbody>
                </table>
            </div>
+
+           {/* Pagination Controls */}
+           {allPostings.length > itemsPerPage && (
+               <div className="p-6 border-t-4 border-neo-black dark:border-white flex justify-between items-center bg-gray-50 dark:bg-zinc-900">
+                   <div className="font-mono text-xs font-bold uppercase tracking-tight text-gray-500">
+                       Showing <span className="text-neo-black dark:text-white">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-neo-black dark:text-white">{Math.min(currentPage * itemsPerPage, allPostings.length)}</span> of <span className="text-neo-black dark:text-white">{allPostings.length}</span> roles
+                   </div>
+                   <div className="flex gap-2">
+                       <NeoButton 
+                           variant="secondary" 
+                           size="sm" 
+                           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                           disabled={currentPage === 1}
+                           className="p-1 px-3 shadow-none border-2"
+                       >
+                           <ChevronLeft className="w-4 h-4" />
+                       </NeoButton>
+                       <div className="flex items-center gap-1">
+                           {[...Array(totalPages)].map((_, i) => (
+                               <button
+                                   key={i}
+                                   onClick={() => setCurrentPage(i + 1)}
+                                   className={`w-8 h-8 font-mono text-xs font-black border-2 transition-all ${
+                                       currentPage === i + 1 
+                                       ? 'bg-neo-black text-white border-neo-black dark:bg-white dark:text-neo-black dark:border-white' 
+                                       : 'bg-white text-neo-black border-neo-black hover:bg-gray-100 dark:bg-zinc-800 dark:text-white dark:border-white'
+                                   }`}
+                               >
+                                   {i + 1}
+                               </button>
+                           ))}
+                       </div>
+                       <NeoButton 
+                           variant="secondary" 
+                           size="sm" 
+                           onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                           disabled={currentPage === totalPages}
+                           className="p-1 px-3 shadow-none border-2"
+                       >
+                           <ChevronRight className="w-4 h-4" />
+                       </NeoButton>
+                   </div>
+               </div>
+           )}
        </div>
     </div>
     </AuthGuard>

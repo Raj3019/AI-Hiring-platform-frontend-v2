@@ -282,23 +282,23 @@ export default function RecruiterJobs() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Department</label>
-                    <NeoInput name="department" value={formData.department ?? ''} onChange={handleInputChange} className="border-4" />
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Department *</label>
+                    <NeoInput name="department" value={formData.department ?? ''} onChange={handleInputChange} required className="border-4" />
                 </div>
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Industry</label>
-                    <NeoInput name="industry" value={formData.industry ?? ''} onChange={handleInputChange} className="border-4" />
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Industry *</label>
+                    <NeoInput name="industry" value={formData.industry ?? ''} onChange={handleInputChange}required className="border-4" />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Location</label>
-                    <NeoInput name="location" value={formData.location ?? ''} onChange={handleInputChange} className="border-4" />
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Location *</label>
+                    <NeoInput name="location" value={formData.location ?? ''} onChange={handleInputChange} required className="border-4" />
                 </div>
                 <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Job Type</label>
-                    <select name="jobType" value={formData.jobType || 'Full-time'} onChange={handleInputChange} className="w-full bg-white dark:bg-zinc-800 dark:text-white border-4 border-neo-black dark:border-white p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-neo-yellow">
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Job Type *</label>
+                    <select name="jobType" value={formData.jobType || 'Full-time'} onChange={handleInputChange} className="w-full bg-white dark:bg-zinc-800 dark:text-white border-4 border-neo-black dark:border-white p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-neo-yellow" required>
                         <option value="Full-time">Full-time</option>
                         <option value="Part-time">Part-time</option>
                         <option value="Contract">Contract</option>
@@ -307,8 +307,8 @@ export default function RecruiterJobs() {
                     </select>
                 </div>
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Work Type</label>
-                    <select name="workType" value={formData.workType || 'On-site'} onChange={handleInputChange} className="w-full bg-white dark:bg-zinc-800 dark:text-white border-4 border-neo-black dark:border-white p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-neo-yellow">
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Work Type *</label>
+                    <select name="workType" value={formData.workType || 'On-site'} onChange={handleInputChange} className="w-full bg-white dark:bg-zinc-800 dark:text-white border-4 border-neo-black dark:border-white p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-neo-yellow" required>
                         <option value="On-site">On-site</option>
                         <option value="Remote">Remote</option>
                         <option value="Hybrid">Hybrid</option>
@@ -322,14 +322,14 @@ export default function RecruiterJobs() {
             </div>
 
             <div>
-                <label className="block font-black uppercase mb-1 text-xs dark:text-white">Skills Required (Comma separated)</label>
-                <NeoInput name="skillsRequired" value={Array.isArray(formData.skillsRequired) ? formData.skillsRequired.join(', ') : (formData.skillsRequired || '')} onChange={(e) => handleArrayInput(e, 'skillsRequired')} className="border-4" />
+                <label className="block font-black uppercase mb-1 text-xs dark:text-white">Skills Required (Comma separated) *</label>
+                <NeoInput name="skillsRequired" value={Array.isArray(formData.skillsRequired) ? formData.skillsRequired.join(', ') : (formData.skillsRequired || '')} onChange={(e) => handleArrayInput(e, 'skillsRequired')} required className="border-4" />
             </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Experience Level</label>
-                    <select name="experienceLevel" value={formData.experienceLevel || 'Mid'} onChange={handleInputChange} className="w-full bg-white dark:bg-zinc-800 dark:text-white border-4 border-neo-black dark:border-white p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-neo-yellow">
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Experience Level *</label>
+                    <select name="experienceLevel" value={formData.experienceLevel || 'Mid'} onChange={handleInputChange} className="w-full bg-white dark:bg-zinc-800 dark:text-white border-4 border-neo-black dark:border-white p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-neo-yellow" required>
                         <option value="Junior">Junior</option>
                         <option value="Mid">Mid</option>
                         <option value="Senior">Senior</option>
@@ -338,45 +338,46 @@ export default function RecruiterJobs() {
                     </select>
                 </div>
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Education Required</label>
-                    <NeoInput name="educationRequired" value={formData.educationRequired ?? ''} onChange={handleInputChange} className="border-4" />
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Education Required *</label>
+                    <NeoInput name="educationRequired" value={formData.educationRequired ?? ''} onChange={handleInputChange} className="border-4" required />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Min Salary</label>
-                    <NeoInput type="number" name="salaryMin" value={formData.salaryMin} onChange={handleInputChange} className="border-4" />
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Min Salary *</label>
+                    <NeoInput type="number" name="salaryMin" value={formData.salaryMin} onChange={handleInputChange} required className="border-4"  />
                 </div>
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Max Salary</label>
-                    <NeoInput type="number" name="salaryMax" value={formData.salaryMax} onChange={handleInputChange} className="border-4" />
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Max Salary *</label>
+                    <NeoInput type="number" name="salaryMax" value={formData.salaryMax} onChange={handleInputChange} required className="border-4" />
                 </div>
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Currency</label>
-                    <NeoInput name="currency" value={formData.currency ?? ''} onChange={handleInputChange} className="border-4" placeholder="USD" />
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Currency *</label>
+                    <NeoInput name="currency" value={formData.currency ?? ''} onChange={handleInputChange} className="border-4" required placeholder="USD" />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Deadline</label>
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Deadline *</label>
                     <NeoInput 
                         type="date" 
                         name="applicationDeadline" 
                         value={formData.applicationDeadline ? formData.applicationDeadline.split('T')[0] : ''} 
                         onChange={handleInputChange} 
                         min={new Date().toISOString().split('T')[0]}
+                        required
                         className="border-4" 
                     />
                 </div>
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Openings</label>
-                    <NeoInput type="number" name="openings" value={formData.openings} onChange={handleInputChange} className="border-4" />
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Openings *</label>
+                    <NeoInput type="number" name="openings" value={formData.openings} onChange={handleInputChange} required className="border-4" />
                 </div>
                  <div>
-                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Status</label>
-                     <select name="status" value={formData.status || 'Draft'} onChange={handleInputChange} className="w-full bg-white dark:bg-zinc-800 dark:text-white border-4 border-neo-black dark:border-white p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-neo-yellow">
+                    <label className="block font-black uppercase mb-1 text-xs dark:text-white">Status *</label>
+                     <select name="status" value={formData.status || 'Draft'} onChange={handleInputChange} required className="w-full bg-white dark:bg-zinc-800 dark:text-white border-4 border-neo-black dark:border-white p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-neo-yellow">
                         <option value="Active">Active</option>
                         {/* <option value="Draft">Draft</option> */}
                         {/* <option value="Paused">Paused</option> */}
@@ -386,8 +387,8 @@ export default function RecruiterJobs() {
             </div>
 
              <div>
-                <label className="block font-black uppercase mb-1 text-xs dark:text-white">Benefits (Comma separated)</label>
-                <NeoInput name="benefits" value={Array.isArray(formData.benefits) ? formData.benefits.join(', ') : (formData.benefits || '')} onChange={(e) => handleArrayInput(e, 'benefits')} className="border-4" />
+                <label className="block font-black uppercase mb-1 text-xs dark:text-white">Benefits (Comma separated) *</label>
+                <NeoInput name="benefits" value={Array.isArray(formData.benefits) ? formData.benefits.join(', ') : (formData.benefits || '')} onChange={(e) => handleArrayInput(e, 'benefits')} required className="border-4" />
             </div>
 
             <div className="flex justify-end gap-2 pt-4 border-t-2 border-gray-100 dark:border-zinc-700">

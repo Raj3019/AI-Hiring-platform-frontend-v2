@@ -7,7 +7,7 @@ import { NeoCard, NeoButton, NeoInput, NeoBadge } from '@/components/ui/neo';
 import { User, Briefcase, MapPin, GraduationCap, Globe, Edit2, Save, X } from 'lucide-react';
 
 // Helper component for displaying field in view mode vs edit mode
-const DisplayField = ({ label, value, name, type = "text", onChange, isTextarea = false, placeholder = "", isEditing }) => {
+const DisplayField = ({ label, value, name, type = "text", onChange, isTextarea = false, placeholder = "", isEditing, ...props }) => {
   if (isEditing) {
     if (isTextarea) {
       return (
@@ -24,7 +24,7 @@ const DisplayField = ({ label, value, name, type = "text", onChange, isTextarea 
       );
     }
     return (
-      <NeoInput label={label} type={type} name={name} value={value || ''} onChange={onChange} placeholder={placeholder} />
+      <NeoInput label={label} type={type} name={name} value={value || ''} onChange={onChange} placeholder={placeholder} {...props} />
     );
   }
   return (
@@ -56,7 +56,8 @@ export default function ProfilePage() {
      experience: [],
      isFresher: false,
      totalExperience: 3,
-     resumeUrl: user?.resume || user?.resumeUrl || ''
+     resumeUrl: user?.resume || user?.resumeUrl || '',
+     createdAt: user?.createdAt || ''
   });
 
   // Function to sync formData with the latest user data from store/API
@@ -64,30 +65,32 @@ export default function ProfilePage() {
     if (!apiData) return;
     setFormData(prev => ({
       ...prev,
-      name: apiData.fullName || apiData.name || prev.name,
-      title: apiData.currentJobTitle || apiData.title || apiData.role || prev.title,
-      bio: apiData.about || apiData.bio || prev.bio,
-      phone: apiData.phone || prev.phone,
-      dob: apiData.dob || prev.dob,
-      gender: apiData.gender || prev.gender,
+      name: apiData.fullName || apiData.name || '',
+      title: apiData.currentJobTitle || apiData.title || apiData.role || '',
+      bio: apiData.about || apiData.bio || '',
+      phone: apiData.phone || '',
+      dob: apiData.dob || '',
+      gender: apiData.gender || '',
       address: {
-        locality: apiData.area || prev.address.locality,
-        city: apiData.currentCity || prev.address.city,
-        state: apiData.state || prev.address.state,
-        country: apiData.country || prev.address.country,
-        zipCode: apiData.zipCode || prev.address.zipCode,
+        locality: apiData.area || apiData.address?.locality || '',
+        city: apiData.currentCity || apiData.address?.city || '',
+        state: apiData.state || apiData.address?.state || '',
+        country: apiData.country || apiData.address?.country || '',
+        zipCode: apiData.zipCode || apiData.address?.zipCode || '',
       },
-      skills: apiData.skills || prev.skills,
+      skills: apiData.skills || [],
+      skillsString: apiData.skills?.join(', ') || '',
       socialLinks: {
-        portfolio: apiData.portfolioUrl || prev.socialLinks.portfolio,
-        linkedin: apiData.linkedinUrl || prev.socialLinks.linkedin,
-        github: apiData.githubUrl || prev.socialLinks.github,
+        portfolio: apiData.portfolioUrl || apiData.socialLinks?.portfolio || '',
+        linkedin: apiData.linkedinUrl || apiData.socialLinks?.linkedin || '',
+        github: apiData.githubUrl || apiData.socialLinks?.github || '',
       },
-      education: apiData.education || prev.education,
-      experience: apiData.workExperience || prev.experience,
-      isFresher: apiData.experienceYears === 0 ? true : (apiData.isFresher !== undefined ? apiData.isFresher : prev.isFresher),
-      totalExperience: apiData.experienceYears || prev.totalExperience,
-      resumeUrl: apiData.resume || apiData.resumeUrl || prev.resumeUrl,
+      education: apiData.education || [],
+      experience: apiData.workExperience || apiData.experience || [],
+      isFresher: apiData.isFresher !== undefined ? apiData.isFresher : (apiData.experienceYears === 0 || (apiData.workExperience?.length === 0 && apiData.experience?.length === 0)),
+      totalExperience: apiData.experienceYears || 0,
+      resumeUrl: apiData.resume || apiData.resumeUrl || '',
+      createdAt: apiData.createdAt || ''
     }));
   };
 
@@ -118,7 +121,32 @@ export default function ProfilePage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'phone') {
+        const numericValue = value.replace(/\D/g, '').slice(0, 10);
+        setFormData(prev => ({ ...prev, [name]: numericValue }));
+        return;
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleExperienceChange = (index, field, value) => {
+    const updatedExp = [...formData.experience];
+    updatedExp[index] = { ...updatedExp[index], [field]: value };
+    setFormData(prev => ({ ...prev, experience: updatedExp }));
+  };
+
+  const addExperience = () => {
+    setFormData(prev => ({
+      ...prev,
+      experience: [...prev.experience, { jobTitle: '', company: '', location: '', startDate: '', endDate: '', description: '' }]
+    }));
+  };
+
+  const removeExperience = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      experience: prev.experience.filter((_, i) => i !== index)
+    }));
   };
 
   const handleAddressChange = (e) => {
@@ -244,6 +272,12 @@ export default function ProfilePage() {
     { id: 4, label: "Additional Info", icon: Globe },
   ];
 
+  const formatMemberSince = (dateString) => {
+    if (!dateString) return 'Jan 2024';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+  };
+
   return (
     <AuthGuard allowedRoles={['candidate']}>
       {isLoadingProfile ? (
@@ -266,7 +300,7 @@ export default function ProfilePage() {
         <div className="md:w-1/3">
           <NeoCard className="sticky top-24 text-center border-4">
             <div className="w-32 h-32 mx-auto bg-gray-200 dark:bg-zinc-800 rounded-full mb-4 border-4 border-neo-black dark:border-white overflow-hidden relative group">
-               <img src={user?.profilePicture || user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="Profile" className="w-full h-full object-cover" />
+               <img src={user?.profilePicture || user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Recruiter"} alt="Profile" className="w-full h-full object-cover" />
                {isEditing && (
                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => handleFileSelection('profile-pic-input')}>
                        <span className="text-white text-xs font-bold uppercase">Change</span>
@@ -297,7 +331,7 @@ export default function ProfilePage() {
             <div className="mt-8 border-t-2 border-gray-100 dark:border-zinc-700 pt-6 grid grid-cols-2 gap-4 text-left">
                <div>
                    <span className="block text-xs text-gray-400 dark:text-gray-500 font-bold uppercase">Member Since</span>
-                   <span className="font-bold dark:text-white">Jan 2024</span>
+                   <span className="font-bold dark:text-white uppercase">{formatMemberSince(formData.createdAt)}</span>
                </div>
                <div>
                    <span className="block text-xs text-gray-400 dark:text-gray-500 font-bold uppercase">Experience</span>
@@ -369,8 +403,8 @@ export default function ProfilePage() {
                           <DisplayField isEditing={isEditing} label="Full Name" value={formData.name} name="name" onChange={handleInputChange} />
                           <DisplayField isEditing={isEditing} label="About" value={formData.bio} name="bio" onChange={handleInputChange} isTextarea={true} placeholder="Tell us about yourself..." />
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <DisplayField isEditing={isEditing} label="Phone Number" value={formData.phone} name="phone" onChange={handleInputChange} placeholder="1234567890" />
-                              <DisplayField isEditing={isEditing} label="Date of Birth" value={formData.dob} name="dob" type="date" onChange={handleInputChange} />
+                              <DisplayField isEditing={isEditing} label="Phone Number" value={formData.phone} name="phone" onChange={handleInputChange} placeholder="10 Digit Number" />
+                              <DisplayField isEditing={isEditing} label="Date of Birth" value={formData.dob} name="dob" type="date" onChange={handleInputChange} max={new Date().toISOString().split('T')[0]} />
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                <div>
@@ -409,12 +443,19 @@ export default function ProfilePage() {
                            <div>
                              <label className="block font-bold text-sm mb-1 dark:text-white">Skills</label>
                              {isEditing ? (
-                               <NeoInput 
-                                   name="skills" 
-                                   value={formData.skills?.join(', ')} 
-                                   onChange={(e) => setFormData(prev => ({...prev, skills: e.target.value.split(',').map(s => s.trim())}))} 
-                                   placeholder="React, Node.js, Design..." 
-                               />
+                                <NeoInput 
+                                    name="skills" 
+                                    value={formData.skillsString || formData.skills?.join(', ')} 
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFormData(prev => ({
+                                            ...prev, 
+                                            skillsString: val,
+                                            skills: val.split(',').map(s => s.trim())
+                                        }));
+                                    }} 
+                                    placeholder="React, Node.js, Design..." 
+                                />
                              ) : (
                                <div className="flex flex-wrap gap-2 mt-2">
                                  {formData.skills?.map((skill, i) => (
@@ -466,58 +507,133 @@ export default function ProfilePage() {
 
                   {activeStep === 3 && (
                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                          <div className="flex items-center gap-3 p-4 bg-gray-100 dark:bg-zinc-800 border-2 border-gray-200 dark:border-zinc-700">
-                               {isEditing ? (
-                                 <input type="checkbox" className="w-5 h-5 accent-neo-black dark:accent-white" id="fresher" checked={formData.isFresher} onChange={(e) => setFormData(p => ({...p, isFresher: e.target.checked}))} />
-                               ) : null}
-                               <label htmlFor="fresher" className="font-bold cursor-pointer dark:text-white">
-                                 {formData.isFresher ? 'Fresher (No work experience)' : `${formData.totalExperience} Years of Experience`}
-                               </label>
-                          </div>
-                          {!formData.isFresher && (
-                              <div className="space-y-4">
-                                  {isEditing && (
-                                    <div>
-                                        <label className="block font-bold text-sm mb-1 dark:text-white">Total Years of Experience</label>
-                                        <NeoInput type="number" name="totalExperience" value={formData.totalExperience} onChange={handleInputChange} />
-                                    </div>
-                                  )}
-                                  <div className="flex justify-between items-center">
-                                      <h4 className="font-bold uppercase text-sm dark:text-white">Work Experience Details</h4>
-                                      {isEditing && <NeoButton variant="secondary" className="text-xs py-1 px-3">+ Add Experience</NeoButton>}
-                                  </div>
-                                  <div className="border-2 border-neo-black dark:border-white p-4 relative bg-white dark:bg-zinc-900">
-                                      {isEditing && <button className="absolute top-2 right-2 text-red-500 font-bold text-xs hover:underline">Remove</button>}
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                          <div>
-                                              <label className="block font-bold text-xs mb-1 dark:text-white">Job Title</label>
-                                              <NeoInput placeholder="e.g. Product Designer" disabled={!isEditing} />
-                                          </div>
-                                          <div>
-                                              <label className="block font-bold text-xs mb-1 dark:text-white">Company</label>
-                                              <NeoInput placeholder="Company Name" disabled={!isEditing} />
-                                          </div>
-                                      </div>
-                                      <div className="mb-4">
-                                           <label className="block font-bold text-xs mb-1 dark:text-white">Location</label>
-                                           <NeoInput placeholder="City, Country" disabled={!isEditing} />
-                                      </div>
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                          <div>
-                                              <label className="block font-bold text-xs mb-1 dark:text-white">Start Date</label>
-                                              <NeoInput type="date" disabled={!isEditing} />
-                                          </div>
-                                          <div>
-                                              <label className="block font-bold text-xs mb-1 dark:text-white">End Date</label>
-                                              <NeoInput type="date" disabled={!isEditing} />
-                                          </div>
-                                      </div>
-                                      <div>
-                                          <label className="block font-bold text-xs mb-1 dark:text-white">Description</label>
-                                          <textarea disabled={!isEditing} className="w-full border-2 border-neo-black dark:border-white p-2 font-mono text-sm h-20 bg-white dark:bg-zinc-900 dark:text-white" placeholder="Roles and responsibilities..."></textarea>
-                                      </div>
-                                  </div>
-                              </div>
+                           <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-zinc-800/50 border-2 border-neo-black dark:border-white shadow-neo-sm">
+                                {isEditing ? (
+                                  <input 
+                                    type="checkbox" 
+                                    className="w-5 h-5 accent-neo-black dark:accent-white cursor-pointer" 
+                                    id="fresher" 
+                                    checked={formData.isFresher} 
+                                    onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        setFormData(p => ({
+                                            ...p, 
+                                            isFresher: checked,
+                                            totalExperience: checked ? 0 : p.totalExperience
+                                        }));
+                                    }} 
+                                  />
+                                ) : (
+                                  <div className={`w-3 h-3 rounded-full ${formData.isFresher ? 'bg-neo-green' : 'bg-neo-blue'}`}></div>
+                                )}
+                                 <label htmlFor="fresher" className={`font-bold cursor-pointer uppercase text-sm tracking-tight ${formData.isFresher ? 'text-neo-green' : 'text-neo-blue dark:text-blue-400'}`}>
+                                   {formData.isFresher ? 'I AM A FRESHER' : 'I HAVE WORK EXPERIENCE'}
+                                 </label>
+                           </div>
+                            {!formData.isFresher && (
+                               <div className="space-y-4">
+                                 <div className="space-y-1">
+                                   <label className="block font-bold text-sm dark:text-white uppercase tracking-tight">Total Years of Experience</label>
+                                   <NeoInput type="number" name="totalExperience" value={formData.totalExperience} onChange={handleInputChange} disabled={!isEditing} />
+                                 </div>
+                                 <div className="flex justify-between items-center pt-4">
+                                   <h4 className="font-bold uppercase text-sm dark:text-white font-mono">Work Experience Details</h4>
+                                   {isEditing && (
+                                     <NeoButton variant="secondary" className="text-xs py-1 px-3" onClick={addExperience}>
+                                       + Add Experience
+                                     </NeoButton>
+                                   )}
+                                 </div>
+                                 {formData.experience?.length > 0 ? (
+                                   formData.experience.map((exp, idx) => (
+                                     <div key={idx} className="border-2 border-neo-black dark:border-white p-4 relative bg-white dark:bg-zinc-900 shadow-neo-sm">
+                                       {isEditing && (
+                                         <button 
+                                           onClick={() => removeExperience(idx)}
+                                           className="absolute top-2 right-2 text-red-500 font-bold text-xs hover:underline uppercase"
+                                         >
+                                           Remove
+                                         </button>
+                                       )}
+                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                   <div>
+                                                       <label className="block font-bold text-xs mb-1 dark:text-white uppercase">Job Title</label>
+                                                       <NeoInput 
+                                                           placeholder="e.g. Product Designer" 
+                                                           value={exp.jobTitle || ''} 
+                                                           onChange={(e) => handleExperienceChange(idx, 'jobTitle', e.target.value)}
+                                                           disabled={!isEditing} 
+                                                       />
+                                                   </div>
+                                                   <div>
+                                                       <label className="block font-bold text-xs mb-1 dark:text-white uppercase">Company</label>
+                                                       <NeoInput 
+                                                           placeholder="Company Name" 
+                                                           value={exp.company || ''} 
+                                                           onChange={(e) => handleExperienceChange(idx, 'company', e.target.value)}
+                                                           disabled={!isEditing} 
+                                                       />
+                                                   </div>
+                                               </div>
+                                               <div className="mb-4">
+                                                   <label className="block font-bold text-xs mb-1 dark:text-white uppercase">Location</label>
+                                                   <NeoInput 
+                                                       placeholder="City, Country" 
+                                                       value={exp.location || ''} 
+                                                       onChange={(e) => handleExperienceChange(idx, 'location', e.target.value)}
+                                                       disabled={!isEditing} 
+                                                   />
+                                               </div>
+                                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                   <div>
+                                                       <label className="block font-bold text-xs mb-1 dark:text-white uppercase">Start Date</label>
+                                                       <NeoInput 
+                                                           type="date" 
+                                                           value={exp.startDate ? new Date(exp.startDate).toISOString().split('T')[0] : ''} 
+                                                           onChange={(e) => handleExperienceChange(idx, 'startDate', e.target.value)}
+                                                           disabled={!isEditing} 
+                                                       />
+                                                   </div>
+                                                     {!exp.currentlyWorking && (
+                                                       <div>
+                                                         <label className="block font-bold text-xs mb-1 dark:text-white uppercase">End Date</label>
+                                                         <NeoInput 
+                                                           type="date" 
+                                                           value={exp.endDate ? new Date(exp.endDate).toISOString().split('T')[0] : ''} 
+                                                           onChange={(e) => handleExperienceChange(idx, 'endDate', e.target.value)}
+                                                           disabled={!isEditing} 
+                                                         />
+                                                       </div>
+                                                     )}
+                                               </div>
+                                               <div className="mb-4">
+                                                   <label className="block font-bold text-xs mb-1 dark:text-white uppercase">Description</label>
+                                                   <textarea 
+                                                       value={exp.description || ''}
+                                                       onChange={(e) => handleExperienceChange(idx, 'description', e.target.value)}
+                                                       disabled={!isEditing} 
+                                                       className="w-full border-2 border-neo-black dark:border-white p-2 font-mono text-sm h-20 bg-white dark:bg-zinc-900 dark:text-white" 
+                                                       placeholder="Roles and responsibilities..."
+                                                   ></textarea>
+                                               </div>
+                                               <div className="flex items-center gap-2 mb-2 mt-2">
+                                                   <input 
+                                                       type="checkbox" 
+                                                       checked={exp.currentlyWorking} 
+                                                       onChange={(e) => handleExperienceChange(idx, 'currentlyWorking', e.target.checked)}
+                                                       disabled={!isEditing}
+                                                       id={`current-cand-${idx}`}
+                                                   />
+                                                   <label htmlFor={`current-cand-${idx}`} className="text-xs font-bold uppercase dark:text-gray-400">I currently work here</label>
+                                               </div>
+                                           </div>
+                                       ))
+                                   ) : (
+                                       <div className="text-center py-6 border-2 border-dashed border-gray-300 dark:border-zinc-700 font-mono text-sm text-gray-500 uppercase">
+                                           No experience items added
+                                       </div>
+                                   )}
+                               </div>
                           )}
                        </div>
                   )}

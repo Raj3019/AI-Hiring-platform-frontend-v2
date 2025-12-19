@@ -51,8 +51,8 @@ export const employeeAPI = {
     return response.data;
   },
 
-  signup: async (name, email, password) => {
-    const response = await api.post('/api/employee/signup', { name, email, password });
+  signup: async (email, password, confirmPassword) => {
+    const response = await api.post('/api/employee/signup', { email, password, confirmPassword });
     return response.data;
   },
 
@@ -105,8 +105,8 @@ export const recruiterAPI = {
     return response.data;
   },
 
-  signup: async (name, email, password) => {
-    const response = await api.post('/api/recuter/signup', { name, email, password });
+  signup: async (email, password, confirmPassword) => {
+    const response = await api.post('/api/recuter/signup', { email, password, confirmPassword });
     return response.data;
   },
 
@@ -127,6 +127,10 @@ export const recruiterAPI = {
 
   logout: async () => {
     const response = await api.post('/api/recuter/logout');
+    return response.data;
+  },
+  updateProfile: async (id, data) => {
+    const response = await api.put(`/api/recuter/profile/${id}`, data);
     return response.data;
   },
 };

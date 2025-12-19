@@ -25,11 +25,12 @@ function RegisterForm() {
   const role = isRecruiter ? 'recruiter' : 'candidate';
   
   const { login, signup, isAuthenticated, user } = useAuthStore();
-  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+  const [formData, setFormData] = useState({ email: '', password: '', confirmPassword: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [mounted, setMounted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Wait for client-side hydration
   useEffect(() => {
@@ -54,10 +55,16 @@ function RegisterForm() {
     
     // Clear any existing errors
     setError('');
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const result = await signup(formData.name, formData.email, formData.password, role);
+      const result = await signup(formData.email, formData.password, formData.confirmPassword, role);
       
       if (result.success) {
         // Redirect based on role after successful signup
@@ -76,50 +83,40 @@ function RegisterForm() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-neo-bg dark:bg-zinc-950 p-4 transition-colors">
+    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-neo-bg dark:bg-zinc-950 p-4 transition-colors text-neo-black">
       <NeoCard className="w-full max-w-md relative pt-10">
-        <div className={`absolute top-0 left-0 w-full h-2 ${isRecruiter ? 'bg-neo-pink' : 'bg-neo-yellow'}`}></div>
+        <div className={`absolute top-0 left-0 w-full h-2 ${isRecruiter ? 'bg-neo-orange' : 'bg-neo-yellow'}`}></div>
         
         <h2 className="text-3xl font-black text-center mb-6 uppercase mt-2 dark:text-white">
           Join Us
-          <span className={`block text-sm font-mono mt-1 ${isRecruiter ? 'text-neo-pink' : 'text-neo-blue'}`}>
+          <span className={`block text-sm font-mono mt-1 ${isRecruiter ? 'text-neo-orange' : 'text-neo-blue'}`}>
             {isRecruiter ? 'Recruiter Portal' : 'Candidate Portal'}
           </span>
         </h2>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-500 dark:border-red-400 shadow-[2px_2px_0px_0px_rgba(239,68,68,0.5)] relative">
+          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-neo-black dark:border-red-400 shadow-neo-sm relative">
             <button 
               onClick={() => setError('')}
-              className="absolute top-2 right-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 font-bold text-xl leading-none"
+              className="absolute top-2 right-2 text-neo-black dark:text-red-400 dark:hover:text-red-200 font-bold text-xl leading-none"
               aria-label="Dismiss error"
             >
               ×
             </button>
             <div className="flex items-start gap-2">
-              <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-5 h-5 text-neo-black dark:text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
               <div>
-                <p className="text-red-700 dark:text-red-300 font-bold text-sm">{error}</p>
+                <p className="font-bold text-sm dark:text-red-300">{error}</p>
               </div>
             </div>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-           <div className="space-y-1">
-             <label className="block font-bold text-sm dark:text-white">Full Name</label>
-             <NeoInput
-              placeholder={isRecruiter ? "Alice Recruiter" : "John Doe"}
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              disabled={isLoading}
-              required
-            />
-          </div> 
           <div className="space-y-1">
-             <label className="block font-bold text-sm dark:text-white">Email</label>
+             <label className="block font-bold text-sm dark:text-white uppercase tracking-tight">Email Address</label>
              <NeoInput
               type="email"
               placeholder="you@example.com"
@@ -130,7 +127,7 @@ function RegisterForm() {
             />
           </div>
           <div className="space-y-1">
-             <label className="block font-bold text-sm dark:text-white">Password</label>
+             <label className="block font-bold text-sm dark:text-white uppercase tracking-tight">Password</label>
              <div className="relative">
                <NeoInput
                 type={showPassword ? "text" : "password"}
@@ -144,10 +141,32 @@ function RegisterForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-400 focus:outline-none"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-neo-black dark:hover:text-white focus:outline-none"
                 tabIndex={-1}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+             </div>
+          </div>
+          <div className="space-y-1">
+             <label className="block font-bold text-sm dark:text-white uppercase tracking-tight">Confirm Password</label>
+             <div className="relative">
+               <NeoInput
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                disabled={isLoading}
+                required
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-neo-black dark:hover:text-white focus:outline-none"
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
              </div>
           </div>
@@ -155,11 +174,11 @@ function RegisterForm() {
           <NeoButton 
             type="submit" 
             size="lg" 
-            className={`w-full mt-4 ${isRecruiter ? 'bg-neo-pink text-white hover:bg-pink-400 dark:shadow-[4px_4px_0px_0px_#ffffff]' : ''}`} 
+            className="w-full mt-4 bg-neo-black text-white hover:bg-zinc-800" 
             isLoading={isLoading}
             disabled={isLoading}
           >
-            {isLoading ? 'Creating Account...' : 'Create Account'}
+            {isLoading ? 'Creating Account...' : 'Get Started →'}
           </NeoButton>
         </form>
 
