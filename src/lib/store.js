@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { employeeAPI, recruiterAPI, jobsAPI } from './api';
+import { cookieStorage, scrubStorage } from './utils';
 
 export const useAuthStore = create(
   persist(
@@ -19,33 +20,7 @@ export const useAuthStore = create(
 
           console.log('Login response:', response);
 
-          // Store token in localStorage - check multiple possible locations
-          // Recruiter API returns token as response.data string
-          // Employee API likely returns it as response.token
-          let token = response.token || response.accessToken;
-
-          if (!token && response.data) {
-            if (typeof response.data === 'string') {
-              token = response.data;
-            } else if (response.data.token) {
-              token = response.data.token;
-            } else if (response.data.accessToken) {
-              token = response.data.accessToken;
-            }
-          }
-
-          if (token) {
-            localStorage.setItem('authToken', token);
-            console.log('Token stored successfully');
-          } else {
-            console.error('No token found in login response!', response);
-            console.warn('Full response structure:', JSON.stringify(response, null, 2));
-          }
-
-          // Small delay to ensure token is stored
-          await new Promise(resolve => setTimeout(resolve, 100));
-
-          // Try to fetch user profile after successful login
+          // Try to fetch user profile after successful login - cookies are now handled by browser
           let profileData = null;
           try {
             profileData = await api.getProfile();
@@ -89,25 +64,6 @@ export const useAuthStore = create(
           const api = (role?.toLowerCase() === 'recruiter' || role?.toLowerCase() === 'recuter') ? recruiterAPI : employeeAPI;
           const response = await api.signup(email, password, confirmPassword);
 
-          // Store token in localStorage
-          let token = response.token || response.accessToken;
-          if (!token && response.data) {
-            if (typeof response.data === 'string') {
-              token = response.data;
-            } else if (response.data.token) {
-              token = response.data.token;
-            } else if (response.data.accessToken) {
-              token = response.data.accessToken;
-            }
-          }
-
-          if (token) {
-            localStorage.setItem('authToken', token);
-          }
-
-          // Small delay to ensure token is stored
-          await new Promise(resolve => setTimeout(resolve, 100));
-
           // For new accounts, we set basic user info
           const userRole = role === 'recruiter' ? 'Recuter' : 'Employee';
           const user = {
@@ -129,32 +85,36 @@ export const useAuthStore = create(
       fetchProfile: async (role) => {
         set({ isLoading: true, error: null });
         try {
-          const api = (role?.toLowerCase() === 'recruiter' || role?.toLowerCase() === 'recuter') ? recruiterAPI : employeeAPI;
+          // If role is not provided, try to guess or use current user role
+          const targetRole = role || get().user?.role || 'employee';
+          const api = (targetRole?.toLowerCase() === 'recruiter' || targetRole?.toLowerCase() === 'recuter') ? recruiterAPI : employeeAPI;
           const response = await api.getProfile();
 
-          // Preserve the original role - don't let backend override it
-          const currentRole = get().user?.role;
-
           // Normalize profile data: handle cases where it's in response.data or response directly
-          // response is the body (axiosResponse.data)
           const profileData = response.data || response.profile || response.user || response;
 
           // Remove success and message if they are in the spread
           const { success: _s, message: _m, ...cleanData } = profileData;
 
-          set((state) => ({
-            user: {
-              ...state.user,
-              ...cleanData,
-              recentApplicationJob: response.recentApplicationJob,
-              role: currentRole || role
-            },
+          // Determine the role from the response or use the requested role
+          const finalRole = cleanData.role || targetRole;
+
+          const user = {
+            ...cleanData,
+            recentApplicationJob: response.recentApplicationJob,
+            role: (finalRole?.toLowerCase() === 'recruiter' || finalRole?.toLowerCase() === 'recuter') ? 'Recuter' : 'Employee',
+            isAuthenticated: true,
+          };
+
+          set({
+            user,
+            isAuthenticated: true,
             isLoading: false,
-          }));
-          return { success: true, data: cleanData };
+          });
+          return { success: true, data: user };
         } catch (error) {
           const errorMessage = error.response?.data?.message || 'Failed to fetch profile.';
-          set({ error: errorMessage, isLoading: false });
+          set({ user: null, isAuthenticated: false, error: errorMessage, isLoading: false });
           return { success: false, error: errorMessage };
         }
       },
@@ -163,7 +123,7 @@ export const useAuthStore = create(
       logout: async () => {
         try {
           // Get current user role to call the correct logout endpoint
-          const state = useAuthStore.getState();
+          const state = get();
           const role = state.user?.role?.toLowerCase();
           const api = (role === 'recruiter' || role === 'recuter') ? recruiterAPI : employeeAPI;
 
@@ -172,9 +132,10 @@ export const useAuthStore = create(
         } catch (error) {
           // Ignore errors since we're logging out anyway
         } finally {
-          // Always clear local data
-          localStorage.removeItem('authToken');
+          // Reset auth state
           set({ user: null, isAuthenticated: false, error: null });
+
+          scrubStorage();
         }
       },
 
@@ -188,6 +149,11 @@ export const useAuthStore = create(
     }),
     {
       name: 'auth-storage',
+      storage: {
+        getItem: (name) => cookieStorage.getItem(name),
+        setItem: (name, value) => cookieStorage.setItem(name, value),
+        removeItem: (name) => cookieStorage.removeItem(name),
+      },
     }
   )
 );
@@ -238,6 +204,11 @@ export const useDataStore = create(
     }),
     {
       name: 'data-storage',
+      storage: {
+        getItem: (name) => cookieStorage.getItem(name),
+        setItem: (name, value) => cookieStorage.setItem(name, value),
+        removeItem: (name) => cookieStorage.removeItem(name),
+      },
     }
   )
 );

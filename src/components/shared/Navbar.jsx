@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { NeoButton } from '@/components/ui/neo';
 import { useAuthStore } from '@/lib/store';
+import { cookieStorage } from '@/lib/utils';
 
 const NavbarContent = () => {
   const pathname = usePathname();
@@ -33,8 +34,9 @@ const NavbarContent = () => {
 
   useEffect(() => {
     if (!mounted) return;
-    // Check local storage or system preference
-    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    // Check cookie storage or system preference
+    const storedTheme = cookieStorage.getItem('theme');
+    if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       setDarkMode(true);
       document.documentElement.classList.add('dark');
     } else {
@@ -47,11 +49,11 @@ const NavbarContent = () => {
     if (darkMode) {
       setDarkMode(false);
       document.documentElement.classList.remove('dark');
-      localStorage.theme = 'light';
+      cookieStorage.setItem('theme', 'light');
     } else {
       setDarkMode(true);
       document.documentElement.classList.add('dark');
-      localStorage.theme = 'dark';
+      cookieStorage.setItem('theme', 'dark');
     }
   };
 

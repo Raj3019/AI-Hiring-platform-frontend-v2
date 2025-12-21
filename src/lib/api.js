@@ -1,20 +1,18 @@
 import axios from 'axios';
+import { cookieStorage, scrubStorage } from './utils';
 
 // Create axios instance with base configuration
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor - no longer needs to add token manually as it's in cookies
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
     return config;
   },
   (error) => {
@@ -35,8 +33,7 @@ api.interceptors.response.use(
       const isProfileRequest = requestUrl.includes('/profile');
 
       if (!isProfileRequest) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('auth-storage');
+        scrubStorage();
         window.location.href = '/login';
       }
     }

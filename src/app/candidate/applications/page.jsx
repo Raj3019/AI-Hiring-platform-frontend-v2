@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
+import Link from 'next/link';
 import { useAuthStore, useDataStore } from '@/lib/store';
 import { NeoCard, NeoBadge } from '@/components/ui/neo';
 
@@ -92,9 +93,9 @@ export default function CandidateApplications() {
                             
                             <div className="h-10 w-px bg-gray-200 dark:bg-zinc-700 hidden md:block"></div>
 
-                            <a href={`/candidate/jobs/${app.job?._id}`} className="flex items-center justify-center p-4 border-2 border-neo-black dark:border-white hover:bg-neo-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_#fff] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] min-h-[50px] min-w-[50px]">
+                            <Link href={`/candidate/jobs/${app.job?._id || app.job?.id}`} className="flex items-center justify-center p-4 border-2 border-neo-black dark:border-white hover:bg-neo-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_#fff] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] min-h-[50px] min-w-[50px]">
                                 <span className="font-black text-xs uppercase">View</span>
-                            </a>
+                            </Link>
                         </div>
                     </NeoCard>
                 );
