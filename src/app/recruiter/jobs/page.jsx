@@ -5,6 +5,7 @@ import { NeoCard, NeoButton, NeoInput, NeoModal, NeoBadge } from '@/components/u
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
 import { jobsAPI } from '@/lib/api';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const INITIAL_FORM_STATE = {
     id: '',
@@ -45,6 +46,10 @@ export default function RecruiterJobs() {
   const [isFormLoading, setIsFormLoading] = useState(false);
   const [error, setError] = useState('');
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  
   // Fetch profile on mount to ensure we have the latest jobs
   useEffect(() => {
     fetchProfile('recruiter');
@@ -74,7 +79,20 @@ export default function RecruiterJobs() {
     (job.department && job.department.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const displayedJobs = filteredJobs; // Show all filtered jobs
+  // Reset page on search
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const totalJobs = filteredJobs.length;
+  const totalPages = Math.ceil(totalJobs / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const displayedJobs = filteredJobs.slice(startIndex, startIndex + pageSize);
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
@@ -253,6 +271,43 @@ export default function RecruiterJobs() {
                     </div>
                 </NeoCard>
             ))
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex flex-wrap justify-center items-center gap-3 mt-6 py-6 border-t-2 border-gray-100 dark:border-zinc-800">
+            <button 
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="p-2 border-2 border-neo-black dark:border-white bg-white dark:bg-zinc-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fff] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neo-yellow dark:hover:bg-neo-yellow dark:hover:text-black transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            
+            <div className="flex gap-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`w-10 h-10 flex items-center justify-center border-2 font-black text-sm transition-all ${
+                    currentPage === page 
+                    ? "bg-neo-blue text-white border-neo-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] translate-x-[-1px] translate-y-[-1px]" 
+                    : "bg-white dark:bg-zinc-800 text-neo-black dark:text-white border-neo-black dark:border-white hover:bg-gray-100 dark:hover:bg-zinc-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fff]"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="p-2 border-2 border-neo-black dark:border-white bg-white dark:bg-zinc-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fff] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neo-yellow dark:hover:bg-neo-yellow dark:hover:text-black transition-colors"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         )}
       </div>
 
