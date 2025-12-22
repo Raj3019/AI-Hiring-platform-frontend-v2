@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { employeeAPI, recruiterAPI, jobsAPI } from './api';
 import { cookieStorage, scrubStorage } from './utils';
 
@@ -114,7 +114,12 @@ export const useAuthStore = create(
           return { success: true, data: user };
         } catch (error) {
           const errorMessage = error.response?.data?.message || 'Failed to fetch profile.';
-          set({ user: null, isAuthenticated: false, error: errorMessage, isLoading: false });
+          // Only clear session if it's definitely an auth error
+          if (error.response?.status === 401 || error.response?.status === 403) {
+            set({ user: null, isAuthenticated: false, error: errorMessage, isLoading: false });
+          } else {
+            set({ isLoading: false });
+          }
           return { success: false, error: errorMessage };
         }
       },
@@ -149,11 +154,7 @@ export const useAuthStore = create(
     }),
     {
       name: 'auth-storage',
-      storage: {
-        getItem: (name) => cookieStorage.getItem(name),
-        setItem: (name, value) => cookieStorage.setItem(name, value),
-        removeItem: (name) => cookieStorage.removeItem(name),
-      },
+      storage: createJSONStorage(() => cookieStorage),
     }
   )
 );
@@ -204,11 +205,7 @@ export const useDataStore = create(
     }),
     {
       name: 'data-storage',
-      storage: {
-        getItem: (name) => cookieStorage.getItem(name),
-        setItem: (name, value) => cookieStorage.setItem(name, value),
-        removeItem: (name) => cookieStorage.removeItem(name),
-      },
+      storage: createJSONStorage(() => cookieStorage),
     }
   )
 );

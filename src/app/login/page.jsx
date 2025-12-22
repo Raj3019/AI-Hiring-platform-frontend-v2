@@ -5,7 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { NeoButton, NeoCard, NeoInput } from '@/components/ui/neo';
 import { Briefcase, User, Eye, EyeOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, cookieStorage } from '@/lib/utils';
+
+// Check if token exists in cookies (for HMR protection)
+const hasTokenInCookies = () => {
+  if (typeof document === 'undefined') return false;
+  const token = cookieStorage.getItem('token');
+  const authStorage = cookieStorage.getItem('auth-storage');
+  return !!(token || authStorage);
+};
 
 // Create a component that uses useSearchParams
 function LoginForm() {
@@ -16,7 +24,7 @@ function LoginForm() {
   const roleParam = searchParams.get('role');
   const isRecruiter = mode === 'recruiter' || roleParam === 'recruiter';
   
-  const { login, isAuthenticated, user } = useAuthStore();
+  const { login, isAuthenticated, user, fetchProfile } = useAuthStore();
   // Role defaults to URL param or candidate, but we won't toggle it here anymore to match reference
   const role = isRecruiter ? 'recruiter' : 'candidate';
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -32,16 +40,29 @@ function LoginForm() {
 
   // Redirect authenticated users away from login page
   useEffect(() => {
-    // Only redirect if truly authenticated with valid user data
-    if (mounted && isAuthenticated && user && user.email) {
+    if (!mounted) return;
+    
+    // Check both store state and cookies for auth
+    const hasAuth = (isAuthenticated && user && user.email) || hasTokenInCookies();
+    
+    if (hasAuth) {
+      // If we have token but no user data, try to fetch profile first
+      if (hasTokenInCookies() && (!user || !user.role)) {
+        const tryRestoreSession = async () => {
+          await fetchProfile(isRecruiter ? 'recuter' : 'employee');
+        };
+        tryRestoreSession();
+        return;
+      }
+      
       // Normalize role (API returns 'Employee' or 'Recuter')
-      const userRole = user.role?.toLowerCase();
+      const userRole = user?.role?.toLowerCase();
       const isRecruiterRole = userRole === 'recruiter' || userRole === 'recuter';
       const redirectTo = isRecruiterRole ? '/recruiter/dashboard' : '/candidate/dashboard';
       console.log('Login page redirecting:', { userRole, redirectTo });
       router.replace(redirectTo);
     }
-  }, [mounted, isAuthenticated, user, router]);
+  }, [mounted, isAuthenticated, user, router, isRecruiter, fetchProfile]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

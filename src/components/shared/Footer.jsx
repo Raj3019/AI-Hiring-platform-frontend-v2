@@ -34,7 +34,7 @@ export default function Footer() {
             </div>
             
             <div className="border-t-2 border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
-                <p className="font-mono text-xs text-gray-500">© 2024 NeoHire Platform. Built with Retro Love.</p>
+                <p className="font-mono text-xs text-gray-500">© 2025 NeoHire Platform. Built with Retro Love.</p>
                 <div className="flex gap-4 mt-4 md:mt-0">
                     <div className="w-8 h-8 bg-neo-yellow border-2 border-white hover:translate-y-[-2px] transition-transform cursor-pointer"></div>
                     <div className="w-8 h-8 bg-neo-pink border-2 border-white hover:translate-y-[-2px] transition-transform cursor-pointer"></div>

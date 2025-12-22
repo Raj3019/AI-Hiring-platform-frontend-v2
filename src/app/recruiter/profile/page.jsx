@@ -42,6 +42,7 @@ export default function RecruiterProfilePage() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [successMessage, setSuccessMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: user?.fullName || user?.name || '',
@@ -113,7 +114,7 @@ export default function RecruiterProfilePage() {
       preferences: apiData.preferences || { industries: [], jobTypes: [] },
       industriesString: apiData.preferences?.industries?.join(', ') || '',
       jobTypesString: apiData.preferences?.jobTypes?.join(', ') || '',
-      resumeFileURL: apiData.resumeFileURL || '',
+      resumeFileURL: apiData.resumeFileURL || apiData.resumeUrl || apiData.resume || '',
       profilePicture: apiData.profilePicture || '',
       createdAt: apiData.createdAt || ''
     }));
@@ -235,6 +236,38 @@ export default function RecruiterProfilePage() {
         setSuccessMessage('Failed to upload image.');
       } finally {
         setIsSaving(false);
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+    }
+  };
+
+  const handleResumeUpload = async (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const formData = new FormData();
+      formData.append('resume', file);
+      
+      
+      setIsUploadingResume(true);
+      
+      try {
+        const res = await recruiterAPI.updateResume(formData);
+        // The backend returns { message: "...", resumeLink: "..." }
+        const resumeUrl = res.resumeLink || res.resumeFileURL || res.resume || res.resumeUrl || res.url || res.data?.resume;
+        
+        if (resumeUrl) {
+          setFormData(prev => ({ ...prev, resumeFileURL: resumeUrl }));
+          setSuccessMessage('Resume uploaded successfully!');
+        } else {
+             // Fallback if URL isn't directly returned, fetch profile again
+             if (user?.role) await fetchProfile(user.role);
+             setSuccessMessage('Resume uploaded! Refreshing...');
+        }
+      } catch (error) {
+        setSuccessMessage('Failed to upload resume.');
+        console.error("Resume upload error:", error);
+      } finally {
+        setIsUploadingResume(false);
         setTimeout(() => setSuccessMessage(''), 3000);
       }
     }
@@ -733,9 +766,39 @@ export default function RecruiterProfilePage() {
                            
                            <div className="pt-4 border-t border-gray-100 dark:border-zinc-700">
                               <label className="block font-bold text-sm mb-1 dark:text-white">Resume / Profile Document</label>
-                              <div className="p-4 border-2 border-dashed border-gray-300 dark:border-zinc-700 flex items-center justify-between">
-                                  <span className="text-sm font-mono text-gray-500 truncate">{formData.resumeFileURL || 'No file uploaded'}</span>
-                                  <NeoButton variant="secondary" className="text-xs">View Document</NeoButton>
+                              <div 
+                                className={`p-4 border-2 border-dashed ${formData.resumeFileURL ? 'border-neo-green bg-neo-green/10' : 'border-gray-300 dark:border-zinc-700'} flex items-center justify-between transition-colors rounded-lg ${isEditing && !isUploadingResume ? 'cursor-pointer hover:border-neo-black dark:hover:border-white' : ''}`}
+                                onClick={() => isEditing && !isUploadingResume && handleFileSelection('resume-upload-input')}
+                              >
+                                  <div className="flex flex-col gap-1 w-full relative">
+                                       {isUploadingResume ? (
+                                           <div className="flex items-center gap-2 justify-center py-2">
+                                               <div className="w-4 h-4 border-2 border-neo-black border-t-transparent rounded-full animate-spin"></div>
+                                               <span className="font-bold text-gray-500">Uploading...</span>
+                                           </div>
+                                       ) : formData.resumeFileURL ? (
+                                           <div className="flex flex-col items-center gap-3">
+                                              <span className="font-bold text-neo-black dark:text-white block">Resume Uploaded Successfully!</span>
+                                              
+                                               <a 
+                                                   href={formData.resumeFileURL} 
+                                                   target="_blank" 
+                                                   rel="noopener noreferrer"
+                                                   className="px-4 py-2 bg-neo-black text-white text-xs font-bold uppercase border-2 border-transparent hover:border-neo-black hover:bg-white hover:text-neo-black transition-all z-20"
+                                                   onClick={(e) => e.stopPropagation()}
+                                               >
+                                                   View Resume
+                                               </a>
+                
+                                              {isEditing && <span className="text-xs text-gray-500 block mt-1 text-center">Click area to replace</span>}
+                                            </div>
+                                       ) : (
+                                          <span className="font-bold text-gray-500 dark:text-gray-400 text-center block">
+                                              {isEditing ? 'Click to upload resume' : 'No file uploaded'}
+                                          </span>
+                                       )}
+                                  </div>
+                                  <input type="file" id="resume-upload-input" className="hidden" accept=".pdf,.doc,.docx" onChange={handleResumeUpload} disabled={isUploadingResume} />
                               </div>
                            </div>
                       </div>

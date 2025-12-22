@@ -3,12 +3,13 @@ import React, { useEffect, useState } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
-import { NeoCard, NeoBadge, NeoButton } from '@/components/ui/neo';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { NeoCard, NeoBadge, NeoButton, NeoInput } from '@/components/ui/neo';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
 export default function CandidateApplications() {
   const { user, fetchProfile } = useAuthStore();
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const pageSize = 5;
 
   useEffect(() => {
@@ -18,22 +19,46 @@ export default function CandidateApplications() {
   }, []);
 
   const getStatusColor = (status) => {
-    switch(status) {
-        case 'Offer': return 'green';
-        case 'Rejected': return 'pink';
-        case 'Shortlisted': return 'yellow';
-        default: return 'blue';
-    }
+      if (!status) return 'blue';
+      const s = status.toLowerCase();
+      
+      if (s.includes('offer') || s.includes('accept') || s.includes('hired') || s.includes('selected')) return 'green';
+      if (s.includes('reject')) return 'red';
+      if (s.includes('shortlist')) return 'yellow';
+      return 'blue';
+  };
+
+  const getScoreColor = (score) => {
+      if (score >= 80) return 'text-neo-green';
+      if (score >= 50) return 'text-neo-yellow';
+      return 'text-neo-red';
   };
 
   const applications = user?.recentApplicationJob || [];
   const sortedApplications = [...applications].sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
   
+  // Search filter
+  const filteredApplications = sortedApplications.filter(app => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      app.job?.title?.toLowerCase().includes(query) ||
+      app.job?.companyName?.toLowerCase().includes(query) ||
+      app.job?.location?.toLowerCase().includes(query) ||
+      app.status?.toLowerCase().includes(query)
+    );
+  });
+  
   // Pagination logic
-  const totalApplications = sortedApplications.length;
+  const totalApplications = filteredApplications.length;
   const totalPages = Math.ceil(totalApplications / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
-  const paginatedApps = sortedApplications.slice(startIndex, startIndex + pageSize);
+  const paginatedApps = filteredApplications.slice(startIndex, startIndex + pageSize);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
@@ -44,6 +69,18 @@ export default function CandidateApplications() {
     <AuthGuard allowedRoles={['candidate']}>
       <div className="max-w-5xl mx-auto px-4 py-8">
         <h1 className="text-4xl font-black uppercase mb-8 dark:text-white">My <span className="text-neo-pink">Applications</span></h1>
+        
+        {/* Search Bar */}
+        <div className="mb-6">
+          <NeoInput 
+            type="text"
+            placeholder="Search by job title, company, location, or status..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            icon={Search}
+            className="w-full"
+          />
+        </div>
         
         <div className="space-y-4">
           {totalApplications === 0 ? (
@@ -86,7 +123,7 @@ export default function CandidateApplications() {
                           <div className="flex items-center gap-6">
                               <div className="text-right">
                                   <span className="block text-[10px] font-black uppercase text-gray-400 dark:text-gray-500 mb-0 leading-none">AI Match</span>
-                                  <span className="text-3xl font-black text-neo-black dark:text-white leading-none">{matchScore}%</span>
+                                  <span className={`text-3xl font-black leading-none ${getScoreColor(matchScore)}`}>{matchScore}%</span>
                               </div>
                               
                               <div className="h-10 w-px bg-gray-200 dark:bg-zinc-700 hidden md:block"></div>

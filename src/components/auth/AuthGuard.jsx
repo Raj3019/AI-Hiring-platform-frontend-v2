@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
+import { cookieStorage } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
 // Helper to check if user has an allowed role
@@ -40,11 +41,20 @@ const normalizeRole = (role) => {
   return role;
 };
 
+// Check if token exists in cookies (for HMR protection)
+const hasTokenInCookies = () => {
+  if (typeof document === 'undefined') return false;
+  const token = cookieStorage.getItem('token');
+  const authStorage = cookieStorage.getItem('auth-storage');
+  return !!(token || authStorage);
+};
+
 export default function AuthGuard({ children, allowedRoles }) {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, fetchProfile } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(true);
 
   // Normalize the user's role
   const userRole = normalizeRole(user?.role);
@@ -62,20 +72,51 @@ export default function AuthGuard({ children, allowedRoles }) {
         allowedRoles,
         isAuthenticated,
         isAllowed,
-        hasUser: !!user
+        hasUser: !!user,
+        hasToken: hasTokenInCookies(),
+        isHydrating
       });
     }
-  }, [mounted, user?.role, userRole, pathname, allowedRoles, isAuthenticated, isAllowed, user]);
+  }, [mounted, user?.role, userRole, pathname, allowedRoles, isAuthenticated, isAllowed, user, isHydrating]);
 
   // Wait for client-side hydration
   useEffect(() => {
     setMounted(true);
+    
+    // Give Zustand persist time to hydrate from cookies
+    const checkHydration = async () => {
+      // If store says authenticated, we're good
+      if (isAuthenticated && user) {
+        setIsHydrating(false);
+        return;
+      }
+      
+      // If token exists but store not hydrated yet, try to fetch profile
+      if (hasTokenInCookies() && !isAuthenticated) {
+        console.log('🔄 Token found in cookies but store not hydrated, attempting to restore session...');
+        // Determine role from path
+        const role = pathname.startsWith('/recruiter') ? 'recuter' : 'employee';
+        await fetchProfile(role);
+      }
+      
+      setIsHydrating(false);
+    };
+    
+    // Small delay to allow Zustand to hydrate
+    const timer = setTimeout(checkHydration, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || isHydrating) return;
 
-    // If not authenticated, redirect to login
+    // Double-check: if token exists but somehow not authenticated, don't redirect yet
+    if (!isAuthenticated && hasTokenInCookies()) {
+      console.log('⏳ Token exists but not authenticated yet, waiting...');
+      return;
+    }
+
+    // If not authenticated and no token, redirect to login
     if (!isAuthenticated) {
       router.push(`/login?redirect=${pathname}`);
       return;
@@ -89,10 +130,10 @@ export default function AuthGuard({ children, allowedRoles }) {
         router.push('/candidate/dashboard');
       }
     }
-  }, [mounted, isAuthenticated, userRole, router, pathname, allowedRoles, isAllowed]);
+  }, [mounted, isAuthenticated, userRole, router, pathname, allowedRoles, isAllowed, isHydrating]);
 
-  // Show loader while mounting or checking auth
-  if (!mounted) {
+  // Show loader while mounting, hydrating, or checking auth
+  if (!mounted || isHydrating) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-neo-bg dark:bg-zinc-950">
         <Loader2 className="w-10 h-10 animate-spin text-neo-yellow" />
@@ -101,6 +142,15 @@ export default function AuthGuard({ children, allowedRoles }) {
   }
 
   if (!isAuthenticated || !isAllowed) {
+    // If token exists, show loader (might still be hydrating)
+    if (hasTokenInCookies()) {
+      return (
+        <div className="h-screen w-full flex items-center justify-center bg-neo-bg dark:bg-zinc-950">
+          <Loader2 className="w-10 h-10 animate-spin text-neo-yellow" />
+        </div>
+      );
+    }
+    
     console.log('🔒 AuthGuard: Showing loader', { isAuthenticated, isAllowed });
     return (
       <div className="h-screen w-full flex items-center justify-center bg-neo-bg dark:bg-zinc-950">

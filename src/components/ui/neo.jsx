@@ -102,6 +102,7 @@ const badgeVariants = cva(
         blue: "bg-neo-blue text-white",
         pink: "bg-neo-pink text-white",
         red: "bg-neo-red text-white",
+        yellow: "bg-neo-yellow text-neo-black",
         outline: "bg-white text-neo-black", // Fallback
         default: "bg-neo-blue text-white",
       },

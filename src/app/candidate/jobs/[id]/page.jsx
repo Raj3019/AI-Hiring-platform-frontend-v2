@@ -24,6 +24,17 @@ export default function JobDetailsPage() {
 
   const [error, setError] = useState(null);
 
+  // Color logic matching applications page
+  const getStatusColor = (status) => {
+    if (!status) return 'blue';
+    const s = status.toLowerCase();
+    
+    if (s.includes('offer') || s.includes('accept') || s.includes('hired') || s.includes('selected')) return 'green';
+    if (s.includes('reject')) return 'red';
+    if (s.includes('shortlist')) return 'yellow';
+    return 'blue';
+  };
+
   useEffect(() => {
     const fetchJobData = async () => {
       let foundJob = jobs.find(j => j._id === params.id || j.id === params.id);
@@ -311,7 +322,7 @@ export default function JobDetailsPage() {
                                    {applicationStatus === 'Pending' ? 'Application Sent!' : `Status: ${applicationStatus || 'Applied'}`}
                                 </h3>
                                 <div className="mt-2">
-                                   <NeoBadge variant={applicationStatus === 'Rejected' ? 'pink' : (applicationStatus === 'Offer' ? 'green' : 'blue')}>
+                                   <NeoBadge variant={getStatusColor(applicationStatus)}>
                                       {applicationStatus || 'Under Review'}
                                    </NeoBadge>
                                 </div>

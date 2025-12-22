@@ -10,9 +10,14 @@ const api = axios.create({
   },
 });
 
-// Request interceptor - no longer needs to add token manually as it's in cookies
+// Request interceptor to add token from cookies if available
 api.interceptors.request.use(
   (config) => {
+    // Manually extract token from cookies if browser doesn't send it or backend needs header
+    const token = cookieStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -30,9 +35,11 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !isAuthRequest) {
       // Don't auto-logout for profile requests - might be a backend route mismatch
+      // Only scrub and redirect if we're NOT on the login page already
       const isProfileRequest = requestUrl.includes('/profile');
+      const isLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
 
-      if (!isProfileRequest) {
+      if (!isProfileRequest && !isLoginPage) {
         scrubStorage();
         window.location.href = '/login';
       }
@@ -136,6 +143,27 @@ export const recruiterAPI = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+    });
+    return response.data;
+  },
+
+  updateResume: async (formData) => {
+    const response = await api.post('/api/recuter/profile/resume', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  getTalents: async () => {
+    const response = await api.get('/api/recuter/talents');
+    return response.data;
+  },
+
+  updateApplicationStatus: async (jobId, applicationId, status) => {
+    const response = await api.put(`/api/recuter/update/${applicationId}/status`, {
+      status
     });
     return response.data;
   },

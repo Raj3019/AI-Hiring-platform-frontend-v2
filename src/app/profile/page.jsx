@@ -56,7 +56,7 @@ export default function ProfilePage() {
      experience: [],
      isFresher: false,
      totalExperience: 3,
-     resumeUrl: user?.resume || user?.resumeUrl || '',
+     resumeUrl: user?.resume || user?.resumeUrl || user?.resumeFileURL || '',
      createdAt: user?.createdAt || ''
   });
 
@@ -89,7 +89,7 @@ export default function ProfilePage() {
       experience: apiData.workExperience || apiData.experience || [],
       isFresher: apiData.isFresher !== undefined ? apiData.isFresher : (apiData.experienceYears === 0 || (apiData.workExperience?.length === 0 && apiData.experience?.length === 0)),
       totalExperience: apiData.experienceYears || 0,
-      resumeUrl: apiData.resume || apiData.resumeUrl || '',
+      resumeUrl: apiData.resume || apiData.resumeUrl || apiData.resumeFileURL || '',
       createdAt: apiData.createdAt || ''
     }));
   };
@@ -647,10 +647,21 @@ export default function ProfilePage() {
                                onClick={() => isEditing && handleFileSelection('resume-upload-input')}
                              >
                                  {formData.resumeUrl ? (
-                                    <>
+                                    <div className="flex flex-col items-center gap-3">
                                       <span className="font-bold text-neo-black dark:text-white block">Resume Uploaded Successfully!</span>
-                                      {isEditing && <span className="text-xs text-gray-500 block mt-1">Click to replace</span>}
-                                    </>
+                                      
+                                       <a 
+                                           href={formData.resumeUrl} 
+                                           target="_blank" 
+                                           rel="noopener noreferrer"
+                                           className="px-4 py-2 bg-neo-black text-white text-xs font-bold uppercase border-2 border-transparent hover:border-neo-black hover:bg-white hover:text-neo-black transition-all z-20"
+                                           onClick={(e) => e.stopPropagation()}
+                                       >
+                                           View Resume
+                                       </a>
+
+                                      {isEditing && <span className="text-xs text-gray-500 block mt-1">Click area to replace</span>}
+                                    </div>
                                  ) : (
                                     <span className="font-bold text-gray-500 dark:text-gray-400">{isUploading ? 'Uploading...' : 'Click to upload resume'}</span>
                                  )}

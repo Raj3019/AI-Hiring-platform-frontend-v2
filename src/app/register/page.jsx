@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { NeoButton, NeoCard, NeoInput } from '@/components/ui/neo';
 import { Briefcase, User, Eye, EyeOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, cookieStorage } from '@/lib/utils';
 
 export default function Register() {
     return (
@@ -14,6 +14,14 @@ export default function Register() {
         </Suspense>
     );
 }
+
+// Check if token exists in cookies (for HMR protection)
+const hasTokenInCookies = () => {
+  if (typeof document === 'undefined') return false;
+  const token = cookieStorage.getItem('token');
+  const authStorage = cookieStorage.getItem('auth-storage');
+  return !!(token || authStorage);
+};
 
 function RegisterForm() {
   const router = useRouter();
@@ -24,7 +32,7 @@ function RegisterForm() {
   const isRecruiter = mode === 'recruiter' || roleParam === 'recruiter';
   const role = isRecruiter ? 'recruiter' : 'candidate';
   
-  const { login, signup, isAuthenticated, user } = useAuthStore();
+  const { login, signup, isAuthenticated, user, fetchProfile } = useAuthStore();
   const [formData, setFormData] = useState({ email: '', password: '', confirmPassword: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -39,15 +47,28 @@ function RegisterForm() {
 
   // Redirect authenticated users away from register page
   useEffect(() => {
-    // Only redirect if truly authenticated with valid user data
-    if (mounted && isAuthenticated && user && user.email) {
+    if (!mounted) return;
+    
+    // Check both store state and cookies for auth
+    const hasAuth = (isAuthenticated && user && user.email) || hasTokenInCookies();
+    
+    if (hasAuth) {
+      // If we have token but no user data, try to fetch profile first
+      if (hasTokenInCookies() && (!user || !user.role)) {
+        const tryRestoreSession = async () => {
+          await fetchProfile(isRecruiter ? 'recuter' : 'employee');
+        };
+        tryRestoreSession();
+        return;
+      }
+      
       // Normalize role (API returns 'Employee', frontend uses 'candidate')
-      const userRole = user.role?.toLowerCase();
+      const userRole = user?.role?.toLowerCase();
       const isRecruiterRole = userRole === 'recruiter' || userRole === 'recuter';
       const redirectTo = isRecruiterRole ? '/recruiter/dashboard' : '/candidate/dashboard';
       router.replace(redirectTo);
     }
-  }, [mounted, isAuthenticated, user, router]);
+  }, [mounted, isAuthenticated, user, router, isRecruiter, fetchProfile]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

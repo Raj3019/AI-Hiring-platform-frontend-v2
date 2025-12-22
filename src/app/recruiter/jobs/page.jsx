@@ -4,7 +4,7 @@ import AuthGuard from '@/components/auth/AuthGuard';
 import { NeoCard, NeoButton, NeoInput, NeoModal, NeoBadge } from '@/components/ui/neo';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
-import { jobsAPI } from '@/lib/api';
+import { jobsAPI, recruiterAPI } from '@/lib/api';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const INITIAL_FORM_STATE = {
@@ -45,6 +45,7 @@ export default function RecruiterJobs() {
   const [isEditing, setIsEditing] = useState(false);
   const [isFormLoading, setIsFormLoading] = useState(false);
   const [error, setError] = useState('');
+  const [expandedInsightId, setExpandedInsightId] = useState(null);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -109,6 +110,31 @@ export default function RecruiterJobs() {
   const handleViewCandidates = (jobId) => {
       setSelectedJobId(jobId);
       setCandidateModalOpen(true);
+  };
+
+  const handleUpdateStatus = async (jobId, applicationId, status) => {
+    // Validate applicationId before making API call
+    if (!applicationId || applicationId === 'undefined' || applicationId === undefined) {
+      console.error('Invalid application ID:', applicationId);
+      setError('Could not identify the application. Please refresh and try again.');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    
+    try {
+      setError('');
+      await recruiterAPI.updateApplicationStatus(jobId, applicationId, status);
+      setSuccessMessage(`Candidate ${status.toLowerCase()} successfully!`);
+      
+      // Refresh profile to get updated applications
+      await fetchProfile('recruiter');
+      
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      console.error('Error updating application status:', err.response?.data || err.message);
+      setError(err.response?.data?.message || 'Failed to update status. Please try again.');
+      setTimeout(() => setError(''), 3000);
+    }
   };
 
   const handleOpenCreate = () => {
@@ -465,6 +491,11 @@ export default function RecruiterJobs() {
         contentClassName="no-scrollbar"
       >
            <div className="p-2">
+             {error && (
+               <div className="mb-4 bg-red-50 border-2 border-red-500 p-3 text-red-700 font-bold">
+                 {error}
+               </div>
+             )}
              <div className="mb-6 bg-neo-black text-white p-6 border-2 border-neo-black shadow-[4px_4px_0px_0px_#54A0FF] flex justify-between items-center dark:border-white">
                  <div>
                      <p className="font-mono text-xs font-bold uppercase tracking-widest text-neo-blue mb-1">AI ANALYSIS COMPLETE</p>
@@ -481,27 +512,50 @@ export default function RecruiterJobs() {
                     selectedJob.applications.map((app, index) => {
                         // Helper to safely extract data regardless of slight structure variations
                         const getSafeData = (source) => {
+                            // Try multiple paths to find an ID we can use for the API
+                            // Priority: application._id > source._id > applicant._id (JobSeeker ID)
+                            const findApplicationId = (src) => {
+                                // Direct application _id (if backend populates it)
+                                if (src._id) return src._id;
+                                if (src.id) return src.id;
+                                // If source has a nested application field
+                                if (src.application?._id) return src.application._id;
+                                if (src.application?.id) return src.application.id;
+                                // Fallback: Use applicant._id (JobSeeker ID)
+                                if (src.applicant?._id) return src.applicant._id;
+                                if (src.applicant?.id) return src.applicant.id;
+                                // Return null if not found
+                                return null;
+                            };
+                            
+                            const applicationId = findApplicationId(source);
+                            
                             // 1. Try standard structure (from recent JSON)
                             if (source.applicant && typeof source.applicant === 'object') {
                                 return {
-                                    id: source.applicant._id || index,
+                                    id: source.applicant._id || `app-${index}`,
+                                    // IMPORTANT: Use APPLICATION ID (source._id), not applicant ID
+                                    applicationId: applicationId,
                                     name: source.applicant.fullName || "Candidate",
                                     title: source.applicant.currentJobTitle || "Applicant",
                                     image: source.applicant.profilePicture,
                                     score: source.aiMatchScore?.overallScore || 0,
                                     insights: source.aiMatchScore?.insights || "No AI insights available.",
-                                    status: source.status || "Applied"
+                                    status: source.status || "Applied",
+                                    resume: source.applicant.resume || source.resume
                                 };
                             }
                             // 2. Fallback: Maybe 'app' IS the applicant object (legacy/flat)
                             return {
-                                id: source._id || index,
+                                id: source._id || `app-${index}`,
+                                applicationId: applicationId,
                                 name: source.fullName || source.name || "Candidate",
                                 title: source.currentJobTitle || source.title || "Applicant",
                                 image: source.profilePicture,
                                 score: source.score || 0,
                                 insights: source.summary || source.insights || "No AI insights available.",
-                                status: source.status || "Applied"
+                                status: source.status || "Applied",
+                                resume: source.resume || source.applicant?.resume
                             };
                         };
 
@@ -526,9 +580,28 @@ export default function RecruiterJobs() {
                                                 <p className="font-mono text-xs text-gray-500 dark:text-gray-400 mt-1">{data.title}</p>
                                             </div>
                                         </div>
-                                        <span className={`inline-block mt-2 text-[10px] font-black uppercase px-2 py-1 border border-black ${data.status === 'Applied' ? 'bg-neo-yellow text-black' : data.status === 'Accepted' ? 'bg-neo-green text-white' : 'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-gray-400'}`}>
-                                            {data.status}
-                                        </span>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <span className={`inline-block text-[10px] font-black uppercase px-2 py-1 border border-black ${
+                                                data.status === 'Applied' ? 'bg-gray-200 text-neo-black dark:bg-zinc-700 dark:text-white' : 
+                                                data.status === 'Pending' ? 'bg-neo-yellow text-black' :
+                                                data.status === 'Shortlist' ? 'bg-neo-blue text-white' :
+                                                data.status === 'Accept' ? 'bg-neo-green text-white' : 
+                                                data.status === 'Reject' ? 'bg-red-500 text-white' :
+                                                'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-gray-400'
+                                            }`}>
+                                                {data.status}
+                                            </span>
+                                            {data.resume && (
+                                                <a 
+                                                    href={data.resume} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="text-[10px] font-black uppercase px-2 py-1 border-2 border-neo-black bg-white dark:bg-zinc-800 dark:text-white hover:bg-neo-blue hover:text-white transition-colors flex items-center gap-1 shadow-neo-sm active:translate-y-0.5 active:shadow-none"
+                                                >
+                                                    📄 RESUME
+                                                </a>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="mt-4">
                                         <span className="block text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">MATCH SCORE</span>
@@ -539,26 +612,90 @@ export default function RecruiterJobs() {
                                 </div>
                                 
                                 {/* Middle Column: AI Summary */}
-                                <div className="md:col-span-4 bg-gray-50 dark:bg-zinc-800 p-4 border-l-4 border-neo-black dark:border-white flex flex-col justify-center">
+                                 <div className={`md:col-span-4 bg-gray-50 dark:bg-zinc-800 p-4 border-l-4 border-neo-black dark:border-white flex flex-col ${expandedInsightId === data.id ? '' : 'justify-center'} transition-all`}>
                                     <span className="font-black text-[10px] uppercase text-neo-black dark:text-white mb-2 flex items-center gap-2">
                                         <span className="w-2 h-2 bg-neo-blue rounded-full"></span>
                                         AI Insight
                                     </span>
-                                    <p className="font-mono text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium line-clamp-6">
+                                    <p className={`font-mono text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium ${expandedInsightId === data.id ? '' : 'line-clamp-6'}`}>
                                         "{data.insights}"
                                     </p>
+                                    {data.insights && data.insights.length > 250 && (
+                                        <button 
+                                            onClick={() => setExpandedInsightId(expandedInsightId === data.id ? null : data.id)}
+                                            className="text-[10px] font-black uppercase text-neo-blue hover:text-blue-600 mt-2 text-left w-fit transition-colors"
+                                        >
+                                            {expandedInsightId === data.id ? 'SHOW LESS ▲' : 'VIEW FULL INSIGHT ▼'}
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Right Column: Actions */}
                                 <div className="md:col-span-3 flex flex-col gap-2 justify-center">
-                                    <button className="w-full bg-neo-black text-white font-black py-3 text-xs border-2 border-neo-black dark:border-white hover:bg-gray-800 dark:hover:bg-zinc-700 uppercase tracking-wider shadow-sm active:translate-y-0.5 active:shadow-none transition-all flex items-center justify-center gap-2">
+                                    {/* Utility buttons */}
+                                    <button className="w-full bg-neo-black text-white font-black py-2.5 text-xs border-2 border-neo-black dark:border-white hover:bg-gray-800 dark:hover:bg-zinc-700 uppercase tracking-wider shadow-sm active:translate-y-0.5 active:shadow-none transition-all flex items-center justify-center gap-2">
                                         <span>📅</span> Schedule
                                     </button>
-                                    <button className="w-full bg-white dark:bg-zinc-900 text-black dark:text-white font-black py-3 text-xs border-2 border-neo-black dark:border-white hover:bg-gray-50 dark:hover:bg-zinc-800 uppercase tracking-wider shadow-sm active:translate-y-0.5 active:shadow-none transition-all flex items-center justify-center gap-2">
+                                    <button className="w-full bg-white dark:bg-zinc-900 text-black dark:text-white font-black py-2.5 text-xs border-2 border-neo-black dark:border-white hover:bg-gray-50 dark:hover:bg-zinc-800 uppercase tracking-wider shadow-sm active:translate-y-0.5 active:shadow-none transition-all flex items-center justify-center gap-2">
                                         <span>📄</span> Profile
                                     </button>
-                                    <button className="w-full border-2 border-red-500 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 font-black py-2 text-xs uppercase tracking-wider active:translate-y-0.5 transition-all">
-                                        Reject
+                                    
+                                    {/* Status Divider */}
+                                    <div className="border-t border-gray-200 dark:border-zinc-700 my-1"></div>
+                                    
+                                    {/* Status Action Buttons */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {/* Pending - Yellow */}
+                                        <button 
+                                            onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Pending')}
+                                            className={`py-2 text-[10px] font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-1 ${
+                                                data.status === 'Pending' 
+                                                    ? 'bg-neo-yellow text-black border-neo-black cursor-default' 
+                                                    : 'bg-white dark:bg-zinc-900 text-neo-black dark:text-white border-neo-black dark:border-white hover:bg-neo-yellow hover:text-black'
+                                            } ${data.status === 'Accept' || data.status === 'Reject' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            disabled={data.status === 'Pending' || data.status === 'Accept' || data.status === 'Reject'}
+                                        >
+                                            ⏳ Pending
+                                        </button>
+                                        
+                                        {/* Shortlist - Blue */}
+                                        <button 
+                                            onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Shortlist')}
+                                            className={`py-2 text-[10px] font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-1 ${
+                                                data.status === 'Shortlist' 
+                                                    ? 'bg-neo-blue text-white border-neo-black cursor-default' 
+                                                    : 'bg-white dark:bg-zinc-900 text-neo-black dark:text-white border-neo-black dark:border-white hover:bg-neo-blue hover:text-white'
+                                            } ${data.status === 'Accept' || data.status === 'Reject' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            disabled={data.status === 'Shortlist' || data.status === 'Accept' || data.status === 'Reject'}
+                                        >
+                                            📋 Shortlist
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Accept - Full width Green */}
+                                    <button 
+                                        onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Accept')}
+                                        className={`w-full py-2.5 text-xs font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-2 ${
+                                            data.status === 'Accept' 
+                                                ? 'bg-neo-green text-white border-neo-black cursor-default shadow-neo-sm' 
+                                                : 'bg-neo-green text-white border-neo-black hover:bg-green-600 shadow-sm'
+                                        } ${data.status === 'Reject' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        disabled={data.status === 'Accept' || data.status === 'Reject'}
+                                    >
+                                        ✅ Accept
+                                    </button>
+                                    
+                                    {/* Reject - Outlined Red */}
+                                    <button 
+                                        onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Reject')}
+                                        className={`w-full py-2 text-xs font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-2 ${
+                                            data.status === 'Reject' 
+                                                ? 'bg-red-500 text-white border-red-500 cursor-default' 
+                                                : 'border-red-500 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                                        } ${data.status === 'Accept' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        disabled={data.status === 'Reject' || data.status === 'Accept'}
+                                    >
+                                        ❌ Reject
                                     </button>
                                 </div>
                             </div>
