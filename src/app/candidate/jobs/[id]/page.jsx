@@ -21,6 +21,11 @@ export default function JobDetailsPage() {
   const [isApplied, setIsApplied] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState(null);
   const [showScoreModal, setShowScoreModal] = useState(false);
+  
+  // Resume source: 'upload' for new upload, 'profile' for existing profile resume
+  const [resumeSource, setResumeSource] = useState('upload');
+  const [hasProfileResume, setHasProfileResume] = useState(false);
+  const [profileResumeUrl, setProfileResumeUrl] = useState('');
 
   const [error, setError] = useState(null);
 
@@ -71,6 +76,36 @@ export default function JobDetailsPage() {
     fetchJobData();
   }, [params.id, jobs, user]);
 
+  // Check if user has a profile resume - separate effect to run on user changes
+  useEffect(() => {
+    if (user) {
+      // Debug: Log all possible resume fields
+      console.log('📄 Resume fields check:', {
+        resume: user.resume,
+        resumeUrl: user.resumeUrl,
+        resumeFileURL: user.resumeFileURL,
+        fullUser: user
+      });
+      
+      // Check all possible field names for resume
+      const profileResume = user.resume || user.resumeUrl || user.resumeFileURL;
+      if (profileResume) {
+        setHasProfileResume(true);
+        setProfileResumeUrl(profileResume);
+      } else {
+        setHasProfileResume(false);
+        setProfileResumeUrl('');
+      }
+    }
+  }, [user]);
+
+  // Fetch fresh profile data on mount to ensure we have the latest resume info
+  useEffect(() => {
+    if (user?.role) {
+      fetchProfile(user.role);
+    }
+  }, []);
+
   const handleFileUpload = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -85,13 +120,23 @@ export default function JobDetailsPage() {
   };
 
   const handleAnalyze = async () => {
-    if (!resumeFile) return;
+    // For profile resume, we don't need a file
+    if (resumeSource === 'upload' && !resumeFile) return;
+    if (resumeSource === 'profile' && !hasProfileResume) return;
 
     setIsAnalyzing(true);
     setAnalysisResult(null);
 
     const formData = new FormData();
-    formData.append('resume', resumeFile);
+    
+    if (resumeSource === 'profile') {
+      // Use existing profile resume
+      formData.append('useExistingResume', 'true');
+    } else {
+      // Upload new resume
+      formData.append('resume', resumeFile);
+      formData.append('useExistingResume', 'false');
+    }
 
     try {
       const response = await jobsAPI.scoreResume(job.id || job._id, formData);
@@ -108,14 +153,23 @@ export default function JobDetailsPage() {
   };
 
   const handleSubmit = async () => {
-    if (!resumeFile) return;
+    // Validate based on resume source
+    if (resumeSource === 'upload' && !resumeFile) return;
+    if (resumeSource === 'profile' && !hasProfileResume) return;
     
     setIsApplying(true);
     
     try {
-        // Backend handles scoring automatically now
         const applyFormData = new FormData();
-        applyFormData.append('resume', resumeFile);
+        
+        if (resumeSource === 'profile') {
+          // Use existing profile resume
+          applyFormData.append('useExistingResume', 'true');
+        } else {
+          // Upload new resume
+          applyFormData.append('resume', resumeFile);
+          applyFormData.append('useExistingResume', 'false');
+        }
 
         await jobsAPI.apply(job._id || job.id, applyFormData);
 
@@ -194,7 +248,15 @@ export default function JobDetailsPage() {
                  Posted by: {job.postedBy?.fullName || (typeof job.postedBy === 'string' && job.postedBy.length < 24 ? job.postedBy : 'Recruiter')}
               </span>
               <span className="hidden md:inline">•</span>
-              <span className="flex items-center gap-2"><span className="text-xl">👥</span> {job.applicantsCount || 12} Applicants</span>
+              <span className="flex items-center gap-2">
+                  <span className="text-xl">👥</span> 
+                  {(job.applications?.length || job.appliedBy?.length || 0)} Applicants
+                  {job.applications?.length > 0 && (
+                      <span className="text-xs ml-1 text-neo-red font-black">
+                          ({job.applications.filter(a => a.status === 'Reject' || a.status === 'Rejected').length} Rejected)
+                      </span>
+                  )}
+              </span>
           </div>
           <div className="mt-6 flex flex-wrap gap-3">
                <NeoBadge variant="blue">{job.jobType || 'Full-time'}</NeoBadge>
@@ -274,39 +336,123 @@ export default function JobDetailsPage() {
                         <div className="p-6">
                         {!isApplied ? (
                             <div className="space-y-4">
-                                <div className="border-4 border-dashed border-gray-300 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-800 p-6 text-center hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer group rounded-lg">
-                                    <input type="file" onChange={handleFileUpload} className="hidden" id="resume-upload" />
-                                    <label htmlFor="resume-upload" className="cursor-pointer block">
-                                        <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">📂</div>
-                                        <p className="font-bold text-sm uppercase dark:text-white">Drop Resume Here</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">PDF, DOCX (Max 5MB)</p>
-                                    </label>
+                                
+                                {/* Resume Source Toggle */}
+                                <div className="bg-gray-50 dark:bg-zinc-800 p-4 border-2 border-gray-200 dark:border-zinc-700 rounded-lg">
+                                  <p className="font-bold text-sm uppercase mb-3 dark:text-white text-center">Choose Resume Source</p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {/* Upload New Option */}
+                                    <button
+                                      type="button"
+                                      onClick={() => setResumeSource('upload')}
+                                      className={`p-3 border-3 rounded-lg font-bold text-xs uppercase transition-all flex flex-col items-center gap-1 ${
+                                        resumeSource === 'upload'
+                                          ? 'bg-neo-blue text-white border-neo-black dark:border-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,1)]'
+                                          : 'bg-white dark:bg-zinc-900 border-gray-300 dark:border-zinc-600 text-gray-600 dark:text-gray-400 hover:border-neo-blue'
+                                      }`}
+                                    >
+                                      <span className="text-xl">📤</span>
+                                      <span>Upload New</span>
+                                    </button>
+                                    
+                                    {/* Use Profile Resume Option */}
+                                    <button
+                                      type="button"
+                                      onClick={() => hasProfileResume && setResumeSource('profile')}
+                                      disabled={!hasProfileResume}
+                                      className={`p-3 border-3 rounded-lg font-bold text-xs uppercase transition-all flex flex-col items-center gap-1 ${
+                                        resumeSource === 'profile'
+                                          ? 'bg-neo-green text-white border-neo-black dark:border-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,1)]'
+                                          : hasProfileResume 
+                                            ? 'bg-white dark:bg-zinc-900 border-gray-300 dark:border-zinc-600 text-gray-600 dark:text-gray-400 hover:border-neo-green'
+                                            : 'bg-gray-100 dark:bg-zinc-950 border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-60'
+                                      }`}
+                                    >
+                                      <span className="text-xl">{hasProfileResume ? '📋' : '🚫'}</span>
+                                      <span>Use Profile</span>
+                                      {!hasProfileResume && <span className="text-[10px] normal-case">No resume saved</span>}
+                                    </button>
+                                  </div>
                                 </div>
-
-                                {resumeName && (
-                                    <div className="animate-in fade-in slide-in-from-top-2">
-                                      <div className="flex items-center justify-between text-xs font-bold text-green-600 mb-2 truncate">
-                                          <span className="truncate max-w-[200px]" title={resumeName}>✓ {resumeName}</span>
-                                          <button onClick={handleRemoveFile} className="text-red-500 hover:underline shrink-0 ml-2">Remove</button>
-                                      </div>
-                                      <NeoButton 
-                                          onClick={handleAnalyze} 
-                                          disabled={isAnalyzing} 
-                                          className="w-full bg-white dark:bg-zinc-800 text-black dark:text-white border-2 border-neo-black dark:border-white hover:bg-gray-100 dark:hover:bg-zinc-700 py-3 text-xs shadow-sm"
-                                      >
-                                          {isAnalyzing ? (
-                                              <span className="flex items-center justify-center gap-2">
-                                                  <span className="animate-spin">⚙️</span> Scanning...
-                                              </span>
-                                          ) : '✨ Check Resume Score'}
-                                      </NeoButton>
+                                
+                                {/* Upload New Resume Section */}
+                                {resumeSource === 'upload' && (
+                                  <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="border-4 border-dashed border-gray-300 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-800 p-6 text-center hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer group rounded-lg">
+                                        <input type="file" onChange={handleFileUpload} className="hidden" id="resume-upload" accept=".pdf,.doc,.docx" />
+                                        <label htmlFor="resume-upload" className="cursor-pointer block">
+                                            <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">📂</div>
+                                            <p className="font-bold text-sm uppercase dark:text-white">Drop Resume Here</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">PDF, DOCX (Max 5MB)</p>
+                                        </label>
                                     </div>
+
+                                    {resumeName && (
+                                        <div className="animate-in fade-in slide-in-from-top-2 mt-3">
+                                          <div className="flex items-center justify-between text-xs font-bold text-green-600 mb-2 truncate">
+                                              <span className="truncate max-w-[200px]" title={resumeName}>✓ {resumeName}</span>
+                                              <button onClick={handleRemoveFile} className="text-red-500 hover:underline shrink-0 ml-2">Remove</button>
+                                          </div>
+                                          <NeoButton 
+                                              onClick={handleAnalyze} 
+                                              disabled={isAnalyzing} 
+                                              className="w-full bg-white dark:bg-zinc-800 text-black dark:text-white border-2 border-neo-black dark:border-white hover:bg-gray-100 dark:hover:bg-zinc-700 py-3 text-xs shadow-sm"
+                                          >
+                                              {isAnalyzing ? (
+                                                  <span className="flex items-center justify-center gap-2">
+                                                      <span className="animate-spin">⚙️</span> Scanning...
+                                                  </span>
+                                              ) : '✨ Check Resume Score'}
+                                          </NeoButton>
+                                        </div>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {/* Use Profile Resume Section */}
+                                {resumeSource === 'profile' && hasProfileResume && (
+                                  <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="bg-green-50 dark:bg-green-900/20 border-4 border-neo-green p-4 rounded-lg">
+                                      <div className="flex items-center gap-3">
+                                        <div className="text-3xl">📄</div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-bold text-sm text-neo-green uppercase">Profile Resume</p>
+                                          <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-1" title={profileResumeUrl}>
+                                            {profileResumeUrl.split('/').pop() || 'resume.pdf'}
+                                          </p>
+                                        </div>
+                                        <a 
+                                          href={profileResumeUrl} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-neo-blue hover:underline text-xs font-bold shrink-0"
+                                        >
+                                          View ↗
+                                        </a>
+                                      </div>
+                                    </div>
+                                    <NeoButton 
+                                        onClick={handleAnalyze} 
+                                        disabled={isAnalyzing} 
+                                        className="w-full bg-white dark:bg-zinc-800 text-black dark:text-white border-2 border-neo-black dark:border-white hover:bg-gray-100 dark:hover:bg-zinc-700 py-3 text-xs shadow-sm mt-3"
+                                    >
+                                        {isAnalyzing ? (
+                                            <span className="flex items-center justify-center gap-2">
+                                                <span className="animate-spin">⚙️</span> Scanning...
+                                            </span>
+                                        ) : '✨ Check Resume Score'}
+                                    </NeoButton>
+                                  </div>
                                 )}
 
                                 <NeoButton 
                                   onClick={handleSubmit} 
                                   className="w-full bg-neo-black dark:bg-neo-green text-white dark:text-black hover:bg-gray-800 dark:hover:bg-green-400 py-4 text-lg border-4 mt-4 shadow-neo-md"
-                                  disabled={!resumeFile || isApplying}
+                                  disabled={
+                                    (resumeSource === 'upload' && !resumeFile) || 
+                                    (resumeSource === 'profile' && !hasProfileResume) || 
+                                    isApplying
+                                  }
                                 >
                                     {isApplying ? (
                                         <span className="flex items-center justify-center gap-2">

@@ -644,7 +644,7 @@ export default function ProfilePage() {
                              <label className="block font-bold text-sm mb-1 dark:text-white">Resume Upload</label>
                              <div 
                                className={`border-2 border-dashed ${formData.resumeUrl ? 'border-neo-green bg-neo-green/10' : 'border-gray-300 dark:border-zinc-600'} p-6 text-center rounded-lg bg-white dark:bg-zinc-900 transition-colors relative cursor-pointer`}
-                               onClick={() => isEditing && handleFileSelection('resume-upload-input')}
+                               onClick={() => handleFileSelection('resume-upload-input')}
                              >
                                  {formData.resumeUrl ? (
                                     <div className="flex flex-col items-center gap-3">
