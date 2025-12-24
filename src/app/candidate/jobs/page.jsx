@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AuthGuard from '@/components/auth/AuthGuard';
 import { useDataStore } from '@/lib/store';
 import { NeoButton, NeoCard, NeoBadge, NeoInput } from '@/components/ui/neo';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function CandidateJobs() {
@@ -12,6 +12,8 @@ export default function CandidateJobs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('All');
   const [selectedWorkType, setSelectedWorkType] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
 
   useEffect(() => {
     fetchJobs();
@@ -34,6 +36,22 @@ export default function CandidateJobs() {
 
     return matchesSearch && matchesType && matchesWorkType;
   });
+
+  // Sort and Paginate
+  const sortedJobs = [...filteredJobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const totalJobs = sortedJobs.length;
+  const totalPages = Math.ceil(totalJobs / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedJobs = sortedJobs.slice(startIndex, startIndex + pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedType, selectedWorkType]);
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const formatSalary = (salary) => {
     if (!salary) return 'Not Disclosed';
@@ -126,25 +144,64 @@ export default function CandidateJobs() {
         </div>
 
         <div className="grid grid-cols-1 gap-6">
-          {filteredJobs.length > 0 ? (
-            [...filteredJobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((job) => (
-              <NeoCard key={job._id || job.id} className="hover:translate-x-[-4px] hover:translate-y-[-4px] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] transition-all cursor-pointer">
-                <Link href={`/candidate/jobs/${job._id || job.id}`}>
-                  <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-                    <div>
-                      <h2 className="text-2xl font-bold dark:text-white">{job.title}</h2>
-                      <p className="text-lg font-mono text-gray-600 dark:text-gray-400 font-bold">{job.company} • {job.location}</p>
-                      <div className="flex gap-2 mt-3 flex-wrap">
-                        <NeoBadge variant="blue">{job.type || 'Full-time'}</NeoBadge>
-                        <NeoBadge variant="green">{formatSalary(job.salary)}</NeoBadge>
-                        <NeoBadge variant="pink">{job.workType || 'Remote'}</NeoBadge>
+          {paginatedJobs.length > 0 ? (
+            <>
+              {paginatedJobs.map((job) => (
+                <NeoCard key={job._id || job.id} className="hover:translate-x-[-4px] hover:translate-y-[-4px] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] transition-all cursor-pointer">
+                  <Link href={`/candidate/jobs/${job._id || job.id}`}>
+                    <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                      <div>
+                        <h2 className="text-2xl font-bold dark:text-white">{job.title}</h2>
+                        <p className="text-lg font-mono text-gray-600 dark:text-gray-400 font-bold">{job.company} • {job.location}</p>
+                        <div className="flex gap-2 mt-3 flex-wrap">
+                          <NeoBadge variant="blue">{job.type || 'Full-time'}</NeoBadge>
+                          <NeoBadge variant="green">{formatSalary(job.salary)}</NeoBadge>
+                          <NeoBadge variant="pink">{job.workType || 'Remote'}</NeoBadge>
+                        </div>
                       </div>
+                      <NeoButton className="whitespace-nowrap">View Details</NeoButton>
                     </div>
-                    <NeoButton className="whitespace-nowrap">View Details</NeoButton>
+                  </Link>
+                </NeoCard>
+              ))}
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-wrap justify-center items-center gap-3 mt-12 py-6">
+                  <button 
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="p-2 border-2 border-neo-black dark:border-white bg-white dark:bg-zinc-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neo-yellow dark:hover:bg-neo-yellow dark:hover:text-black transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="flex gap-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`w-10 h-10 flex items-center justify-center border-2 font-black text-sm transition-all ${
+                          currentPage === page 
+                          ? "bg-neo-blue text-white border-neo-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] translate-x-[-1px] translate-y-[-1px]" 
+                          : "bg-white dark:bg-zinc-800 text-neo-black dark:text-white border-neo-black dark:border-white hover:bg-gray-100 dark:hover:bg-zinc-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
                   </div>
-                </Link>
-              </NeoCard>
-            ))
+
+                  <button 
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="p-2 border-2 border-neo-black dark:border-white bg-white dark:bg-zinc-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neo-yellow dark:hover:bg-neo-yellow dark:hover:text-black transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-20 border-4 border-dashed border-gray-300 dark:border-zinc-700">
               <h3 className="text-2xl font-black uppercase text-gray-400">No matching positions found</h3>

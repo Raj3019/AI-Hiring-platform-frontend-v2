@@ -4,8 +4,30 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthGuard from '@/components/auth/AuthGuard';
 import { useAuthStore, useDataStore } from '@/lib/store';
+import { getMissingProfileFields } from '@/lib/utils';
 import { jobsAPI } from '@/lib/api';
 import { NeoCard, NeoButton, NeoBadge } from '@/components/ui/neo';
+
+const formatFieldName = (field) => {
+    const map = {
+        'fullName': 'Full Name',
+        'phone': 'Phone Number', 
+        'dateOfBirth': 'Date of Birth',
+        'gender': 'Gender',
+        'currentCity': 'City',
+        'state': 'State',
+        'country': 'Country',
+        'zipCode': 'Zip Code',
+        'resumeFileURL': 'Resume',
+        'skills': 'Skills',
+        'languages': 'Languages',
+        'education.tenth': '10th Education Details',
+        'education.graduation': 'Graduation Details',
+        'jobPreferences.jobType': 'Preferred Job Type',
+        'jobPreferences.workMode': 'Preferred Work Mode'
+    };
+    return map[field] || field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+};
 
 export default function JobDetailsPage() {
   const params = useParams();
@@ -447,10 +469,11 @@ export default function JobDetailsPage() {
 
                                 <NeoButton 
                                   onClick={handleSubmit} 
-                                  className="w-full bg-neo-black dark:bg-neo-green text-white dark:text-black hover:bg-gray-800 dark:hover:bg-green-400 py-4 text-lg border-4 mt-4 shadow-neo-md"
+                                  className="w-full bg-neo-black dark:bg-neo-green text-white dark:text-black hover:bg-gray-800 dark:hover:bg-green-400 py-4 text-lg border-4 mt-4 shadow-neo-md disabled:opacity-50 disabled:cursor-not-allowed"
                                   disabled={
                                     (resumeSource === 'upload' && !resumeFile) || 
                                     (resumeSource === 'profile' && !hasProfileResume) || 
+                                    (user && getMissingProfileFields(user).length > 0) ||
                                     isApplying
                                   }
                                 >
@@ -458,8 +481,23 @@ export default function JobDetailsPage() {
                                         <span className="flex items-center justify-center gap-2">
                                             <span className="animate-spin">⏳</span> Submitting...
                                         </span>
+                                    ) : (user && getMissingProfileFields(user).length > 0) ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <span>⚠️</span> Complete Profile to Apply
+                                        </span>
                                     ) : 'SUBMIT APPLICATION'}
                                 </NeoButton>
+                                {user && getMissingProfileFields(user).length > 0 && (
+                                    <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-900 text-center rounded">
+                                        <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase mb-1">Missing required fields:</p>
+                                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                                            {getMissingProfileFields(user).map(f => formatFieldName(f)).join(', ')}
+                                        </p>
+                                        <Link href="/profile" className="block mt-2 text-xs font-black underline text-red-600 hover:text-red-800">
+                                            Go to Profile →
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="text-center py-8">

@@ -1,9 +1,49 @@
-'use client';
-import React from 'react';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { NeoButton, NeoCard } from '@/components/ui/neo';
 
-export default function NotFound() {
+// Server-side role normalization
+const normalizeRole = (role) => {
+  if (!role) return null;
+  const lower = String(role).toLowerCase();
+  if (lower === 'employee' || lower === 'candidate') return 'candidate';
+  if (lower === 'recruiter' || lower === 'recuter') return 'recruiter';
+  return null;
+};
+
+function getRoleFromAuthStorageCookie(authCookie) {
+  if (!authCookie) return null;
+  try {
+    const decoded = decodeURIComponent(authCookie);
+    const parsed = JSON.parse(decoded);
+    const stored = parsed?.state || parsed;
+    const storedUser = stored?.user || stored;
+    return normalizeRole(storedUser?.role);
+  } catch (e) {
+    return null;
+  }
+}
+
+export default async function NotFound() {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth-storage')?.value;
+  const tokenCookie = cookieStore.get('token')?.value;
+
+  // Prefer role from persisted auth-storage cookie
+  let role = getRoleFromAuthStorageCookie(authCookie);
+
+  // If no role found, token may exist (JWT) — we cannot decode here without secret,
+  // so fall back to null (candidate view will be used). If your token is a JWT
+  // containing role and you want server-side decoding, add decoding with your
+  // secret here.
+  if (!role && tokenCookie) {
+    // Optionally attempt to parse token if it's a plain object. Skip for safety.
+  }
+
+  const isRecruiter = role === 'recruiter';
+  const jobsHref = isRecruiter ? '/recruiter/jobs' : '/candidate/jobs';
+  const title = isRecruiter ? 'Recruiter — Page Not Found' : "WHOOPS! YOU'RE OFF THE GRID.";
+
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center p-4 bg-grid-pattern overflow-hidden">
       <div className="max-w-2xl w-full text-center space-y-8 animate-slide-up">
@@ -20,44 +60,43 @@ export default function NotFound() {
         </div>
 
         <NeoCard className="p-8 shadow-neo-xl space-y-6 relative overflow-hidden text-center">
-             {/* Decorative lines like in Neobrutalism UI */}
-            <div className="absolute top-0 left-0 w-full h-2 bg-neo-blue"></div>
-            
-            <h2 className="text-3xl md:text-4xl font-black text-neo-black dark:text-white uppercase tracking-tight">
-                WHOOPS! YOU'RE OFF THE GRID.
-            </h2>
-            
-            <p className="text-lg md:text-xl font-bold text-gray-700 dark:text-gray-300 max-w-lg mx-auto leading-tight">
-                The page you're looking for was either deleted, renamed, or never existed in this dimension.
-            </p>
+          <div className="absolute top-0 left-0 w-full h-2 bg-neo-blue"></div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                <Link href="/">
-                    <NeoButton variant="primary" className="text-lg px-8 py-4 w-full sm:w-auto">
-                        BACK TO HOME
-                    </NeoButton>
-                </Link>
-                <Link href="/candidate/jobs">
-                    <NeoButton variant="secondary" className="text-lg px-8 py-4 w-full sm:w-auto">
-                        BROWSE JOBS
-                    </NeoButton>
-                </Link>
-            </div>
+          <h2 className="text-3xl md:text-4xl font-black text-neo-black dark:text-white uppercase tracking-tight">
+            {title}
+          </h2>
+
+          <p className="text-lg md:text-xl font-bold text-gray-700 dark:text-gray-300 max-w-lg mx-auto leading-tight">
+            The page you're looking for was either deleted, renamed, or never existed in this dimension.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+            <Link href="/">
+              <NeoButton variant="primary" className="text-lg px-8 py-4 w-full sm:w-auto">
+                BACK TO HOME
+              </NeoButton>
+            </Link>
+            <Link href={jobsHref}>
+              <NeoButton variant="secondary" className="text-lg px-8 py-4 w-full sm:w-auto">
+                BROWSE JOBS
+              </NeoButton>
+            </Link>
+          </div>
         </NeoCard>
 
         <div className="flex justify-center gap-8 md:gap-16 pt-8">
-            <div className="flex flex-col items-center group">
-                <div className="w-12 h-12 bg-neo-green neo-border shadow-neo-sm rotate-3 group-hover:rotate-0 transition-transform"></div>
-                <span className="mt-2 font-black text-xs uppercase tracking-widest text-neo-black dark:text-white">Applied</span>
-            </div>
-            <div className="flex flex-col items-center group">
-                <div className="w-12 h-12 bg-neo-orange neo-border shadow-neo-sm -rotate-3 group-hover:rotate-0 transition-transform"></div>
-                <span className="mt-2 font-black text-xs uppercase tracking-widest text-neo-black dark:text-white">Rejected</span>
-            </div>
-            <div className="flex flex-col items-center group">
-                <div className="w-12 h-12 bg-neo-blue neo-border shadow-neo-sm rotate-6 group-hover:rotate-0 transition-transform"></div>
-                <span className="mt-2 font-black text-xs uppercase tracking-widest text-neo-black dark:text-white">Hired</span>
-            </div>
+          <div className="flex flex-col items-center group">
+            <div className="w-12 h-12 bg-neo-green neo-border shadow-neo-sm rotate-3 group-hover:rotate-0 transition-transform"></div>
+            <span className="mt-2 font-black text-xs uppercase tracking-widest text-neo-black dark:text-white">Applied</span>
+          </div>
+          <div className="flex flex-col items-center group">
+            <div className="w-12 h-12 bg-neo-orange neo-border shadow-neo-sm -rotate-3 group-hover:rotate-0 transition-transform"></div>
+            <span className="mt-2 font-black text-xs uppercase tracking-widest text-neo-black dark:text-white">Rejected</span>
+          </div>
+          <div className="flex flex-col items-center group">
+            <div className="w-12 h-12 bg-neo-blue neo-border shadow-neo-sm rotate-6 group-hover:rotate-0 transition-transform"></div>
+            <span className="mt-2 font-black text-xs uppercase tracking-widest text-neo-black dark:text-white">Hired</span>
+          </div>
         </div>
       </div>
     </div>

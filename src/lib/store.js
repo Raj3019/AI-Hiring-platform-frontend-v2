@@ -81,40 +81,67 @@ export const useAuthStore = create(
         }
       },
 
-      // Fetch profile from backend
+      // Fetch profile from backend. If `role` is provided, use that API.
+      // If no role provided, try recruiter first then employee to correctly
+      // restore sessions when only a token cookie exists.
       fetchProfile: async (role) => {
         set({ isLoading: true, error: null });
-        try {
-          // If role is not provided, try to guess or use current user role
-          const targetRole = role || get().user?.role || 'employee';
-          const api = (targetRole?.toLowerCase() === 'recruiter' || targetRole?.toLowerCase() === 'recuter') ? recruiterAPI : employeeAPI;
+        const tryApi = async (api) => {
           const response = await api.getProfile();
+          return response;
+        };
 
-          // Normalize profile data: handle cases where it's in response.data or response directly
-          const profileData = response.data || response.profile || response.user || response;
+        try {
+          const currentUserRole = get().user?.role;
 
-          // Remove success and message if they are in the spread
-          const { success: _s, message: _m, ...cleanData } = profileData;
-
-          // Determine the role from the response or use the requested role
-          const finalRole = cleanData.role || targetRole;
-
-          const user = {
-            ...cleanData,
-            recentApplicationJob: response.recentApplicationJob,
-            role: (finalRole?.toLowerCase() === 'recruiter' || finalRole?.toLowerCase() === 'recuter') ? 'Recuter' : 'Employee',
-            isAuthenticated: true,
+          // Helper to build user object from response
+          const buildUser = (response, requestedRole) => {
+            const profileData = response.data || response.profile || response.user || response;
+            const { success: _s, message: _m, ...cleanData } = profileData;
+            const finalRole = cleanData.role || requestedRole || currentUserRole || 'employee';
+            return {
+              ...cleanData,
+              recentApplicationJob: response.recentApplicationJob,
+              role: (finalRole?.toLowerCase() === 'recruiter' || finalRole?.toLowerCase() === 'recuter') ? 'Recuter' : 'Employee',
+              isAuthenticated: true,
+            };
           };
 
-          set({
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-          return { success: true, data: user };
+          let response;
+
+          if (role) {
+            const targetApi = (role?.toLowerCase() === 'recruiter' || role?.toLowerCase() === 'recuter') ? recruiterAPI : employeeAPI;
+            response = await tryApi(targetApi);
+            const user = buildUser(response, role);
+            set({ user, isAuthenticated: true, isLoading: false });
+            return { success: true, data: user };
+          }
+
+          // No explicit role: try recruiter first, then employee
+          try {
+            response = await tryApi(recruiterAPI);
+            const user = buildUser(response, 'recruiter');
+            set({ user, isAuthenticated: true, isLoading: false });
+            return { success: true, data: user };
+          } catch (recErr) {
+            // If recruiter returns 401/403, fall back to employee
+            try {
+              response = await tryApi(employeeAPI);
+              const user = buildUser(response, 'employee');
+              set({ user, isAuthenticated: true, isLoading: false });
+              return { success: true, data: user };
+            } catch (empErr) {
+              const errorMessage = empErr.response?.data?.message || recErr.response?.data?.message || 'Failed to fetch profile.';
+              if (empErr.response?.status === 401 || empErr.response?.status === 403 || recErr.response?.status === 401 || recErr.response?.status === 403) {
+                set({ user: null, isAuthenticated: false, error: errorMessage, isLoading: false });
+              } else {
+                set({ isLoading: false });
+              }
+              return { success: false, error: errorMessage };
+            }
+          }
         } catch (error) {
           const errorMessage = error.response?.data?.message || 'Failed to fetch profile.';
-          // Only clear session if it's definitely an auth error
           if (error.response?.status === 401 || error.response?.status === 403) {
             set({ user: null, isAuthenticated: false, error: errorMessage, isLoading: false });
           } else {

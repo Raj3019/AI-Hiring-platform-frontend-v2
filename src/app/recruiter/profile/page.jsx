@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import { useAuthStore } from '@/lib/store';
 import { recruiterAPI } from '@/lib/api';
-import { NeoCard, NeoButton, NeoInput, NeoBadge } from '@/components/ui/neo';
+import { NeoCard, NeoButton, NeoInput, NeoBadge, NeoDatePicker, NeoCheckbox } from '@/components/ui/neo';
 import { User, Briefcase, MapPin, GraduationCap, Globe, Edit2, Save, X, Trophy } from 'lucide-react';
 
 // Helper component for displaying field in view mode vs edit mode
@@ -21,6 +21,11 @@ const DisplayField = ({ label, value, name, type = "text", onChange, isTextarea 
             placeholder={placeholder} 
           />
         </div>
+      );
+    }
+    if (type === 'date') {
+      return (
+        <NeoDatePicker label={label} name={name} value={value || ''} onChange={onChange} {...props} />
       );
     }
     return (
@@ -575,26 +580,20 @@ export default function RecruiterProfilePage() {
                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                            <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-zinc-800/50 border-2 border-neo-black dark:border-white shadow-neo-sm mb-6">
                                 {isEditing ? (
-                                  <input 
-                                    type="checkbox" 
-                                    className="w-5 h-5 accent-neo-black dark:accent-white cursor-pointer" 
+                                  <NeoCheckbox 
                                     id="fresher-recruiter" 
                                     checked={formData.isFresher} 
-                                    onChange={(e) => {
-                                        const checked = e.target.checked;
-                                        setFormData(p => ({
-                                            ...p, 
-                                            isFresher: checked,
-                                            experienceYears: checked ? 0 : p.experienceYears
-                                        }));
-                                    }} 
+                                    onCheckedChange={(checked) => setFormData(p => ({...p, isFresher: checked, experienceYears: checked ? 0 : p.experienceYears}))}
+                                    label={formData.isFresher ? 'I AM A FRESHER' : 'I HAVE WORK EXPERIENCE'}
                                   />
                                 ) : (
-                                  <div className={`w-3 h-3 rounded-full ${formData.isFresher ? 'bg-neo-green' : 'bg-neo-blue'}`}></div>
+                                  <>
+                                    <div className={`w-3 h-3 rounded-full ${formData.isFresher ? 'bg-neo-green' : 'bg-neo-blue'}`}></div>
+                                    <span className={`font-bold uppercase text-sm tracking-tight ${formData.isFresher ? 'text-neo-green' : 'text-neo-blue dark:text-blue-400'}`}>
+                                       {formData.isFresher ? 'I AM A FRESHER' : 'I HAVE WORK EXPERIENCE'}
+                                    </span>
+                                  </>
                                 )}
-                                 <label htmlFor="fresher-recruiter" className={`font-bold cursor-pointer uppercase text-sm tracking-tight ${formData.isFresher ? 'text-neo-green' : 'text-neo-blue dark:text-blue-400'}`}>
-                                   {formData.isFresher ? 'I AM A FRESHER' : 'I HAVE WORK EXPERIENCE'}
-                                 </label>
                            </div>
 
                            {!formData.isFresher && (
@@ -672,14 +671,13 @@ export default function RecruiterProfilePage() {
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    <input 
-                                                        type="checkbox" 
+                                                    <NeoCheckbox 
                                                         checked={exp.currentlyWorking} 
-                                                        onChange={(e) => handleWorkExperienceChange(idx, 'currentlyWorking', e.target.checked)}
+                                                        onCheckedChange={(checked) => handleWorkExperienceChange(idx, 'currentlyWorking', checked)}
                                                         disabled={!isEditing}
                                                         id={`current-${idx}`}
+                                                        label="Current Job"
                                                     />
-                                                    <label htmlFor={`current-${idx}`} className="text-xs font-bold uppercase dark:text-gray-400">Current Job</label>
                                                 </div>
                                             </div>
                                         ))

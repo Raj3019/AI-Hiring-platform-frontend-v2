@@ -50,6 +50,8 @@ export default function RecruiterJobs() {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
+  const [currentAppPage, setCurrentAppPage] = useState(1);
+  const appPageSize = 5;
   
   // Fetch profile on mount to ensure we have the latest jobs
   useEffect(() => {
@@ -109,6 +111,7 @@ export default function RecruiterJobs() {
 
   const handleViewCandidates = (jobId) => {
       setSelectedJobId(jobId);
+      setCurrentAppPage(1); // Reset modal pagination
       setCandidateModalOpen(true);
   };
 
@@ -509,44 +512,42 @@ export default function RecruiterJobs() {
              
              <div className="space-y-6">
                 {selectedJob?.applications && selectedJob.applications.length > 0 ? (
-                    selectedJob.applications.map((app, index) => {
-                        // Helper to safely extract data regardless of slight structure variations
-                        const getSafeData = (source) => {
-                            // Try multiple paths to find an ID we can use for the API
-                            // Priority: application._id > source._id > applicant._id (JobSeeker ID)
-                            const findApplicationId = (src) => {
-                                // Direct application _id (if backend populates it)
+                  <>
+                    {(() => {
+                      const allApps = selectedJob.applications;
+                      const paginatedApps = allApps.slice((currentAppPage - 1) * appPageSize, currentAppPage * appPageSize);
+
+                      return (
+                        <>
+                          {paginatedApps.map((app, index) => {
+                            // Helper to safely extract data regardless of slight structure variations
+                            const getSafeData = (source) => {
+                              const findApplicationId = (src) => {
                                 if (src._id) return src._id;
                                 if (src.id) return src.id;
-                                // If source has a nested application field
                                 if (src.application?._id) return src.application._id;
                                 if (src.application?.id) return src.application.id;
-                                // Fallback: Use applicant._id (JobSeeker ID)
                                 if (src.applicant?._id) return src.applicant._id;
                                 if (src.applicant?.id) return src.applicant.id;
-                                // Return null if not found
                                 return null;
-                            };
-                            
-                            const applicationId = findApplicationId(source);
-                            
-                            // 1. Try standard structure (from recent JSON)
-                            if (source.applicant && typeof source.applicant === 'object') {
+                              };
+                              
+                              const applicationId = findApplicationId(source);
+                              
+                              if (source.applicant && typeof source.applicant === 'object') {
                                 return {
-                                    id: source.applicant._id || `app-${index}`,
-                                    // IMPORTANT: Use APPLICATION ID (source._id), not applicant ID
-                                    applicationId: applicationId,
-                                    name: source.applicant.fullName || "Candidate",
-                                    title: source.applicant.currentJobTitle || "Applicant",
-                                    image: source.applicant.profilePicture,
-                                    score: source.aiMatchScore?.overallScore || 0,
-                                    insights: source.aiMatchScore?.insights || "No AI insights available.",
-                                    status: source.status || "Applied",
-                                    resume: source.applicant.resume || source.resume
+                                  id: source.applicant._id || `app-${index}`,
+                                  applicationId: applicationId,
+                                  name: source.applicant.fullName || "Candidate",
+                                  title: source.applicant.currentJobTitle || "Applicant",
+                                  image: source.applicant.profilePicture,
+                                  score: source.aiMatchScore?.overallScore || 0,
+                                  insights: source.aiMatchScore?.insights || "No AI insights available.",
+                                  status: source.status || "Applied",
+                                  resume: source.applicant.resume || source.resume
                                 };
-                            }
-                            // 2. Fallback: Maybe 'app' IS the applicant object (legacy/flat)
-                            return {
+                              }
+                              return {
                                 id: source._id || `app-${index}`,
                                 applicationId: applicationId,
                                 name: source.fullName || source.name || "Candidate",
@@ -556,155 +557,122 @@ export default function RecruiterJobs() {
                                 insights: source.summary || source.insights || "No AI insights available.",
                                 status: source.status || "Applied",
                                 resume: source.resume || source.applicant?.resume
+                              };
                             };
-                        };
 
-                        const data = getSafeData(app);
+                            const data = getSafeData(app);
 
-                        return (
-                            <div key={data.id} className="bg-white dark:bg-zinc-900 border-4 border-neo-black dark:border-white p-6 shadow-sm hover:shadow-neo transition-all relative group grid grid-cols-1 md:grid-cols-12 gap-6">
+                            return (
+                              <div key={data.id} className="bg-white dark:bg-zinc-900 border-4 border-neo-black dark:border-white p-6 shadow-sm hover:shadow-neo transition-all relative group grid grid-cols-1 md:grid-cols-12 gap-6">
                                 {/* Left Column: Avatar & Info */}
                                 <div className="md:col-span-5 flex flex-col justify-between border-b-2 md:border-b-0 md:border-r-2 border-gray-100 dark:border-zinc-700 pb-4 md:pb-0 md:pr-4">
-                                    <div>
-                                        <div className="flex items-center gap-4 mb-2">
-                                            {data.image ? (
-                                                <img src={data.image} alt={data.name} className="w-12 h-12 rounded-full border-2 border-neo-black object-cover" />
-                                            ) : (
-                                                <div className="w-12 h-12 bg-neo-yellow border-2 border-neo-black rounded-full flex items-center justify-center font-black text-xl text-black">
-                                                    {data.name.charAt(0)}
-                                                </div>
-                                            )}
-                                            
-                                            <div className="overflow-hidden">
-                                                <h4 className="font-black text-md uppercase tracking-tighter leading-none dark:text-white truncate" title={data.name}>{data.name}</h4>
-                                                <p className="font-mono text-xs text-gray-500 dark:text-gray-400 mt-1">{data.title}</p>
-                                            </div>
+                                  <div>
+                                    <div className="flex items-center gap-4 mb-2">
+                                      {data.image ? (
+                                        <img src={data.image} alt={data.name} className="w-12 h-12 rounded-full border-2 border-neo-black object-cover" />
+                                      ) : (
+                                        <div className="w-12 h-12 bg-neo-yellow border-2 border-neo-black rounded-full flex items-center justify-center font-black text-xl text-black">
+                                          {data.name.charAt(0)}
                                         </div>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <span className={`inline-block text-[10px] font-black uppercase px-2 py-1 border border-black ${
-                                                data.status === 'Applied' ? 'bg-gray-200 text-neo-black dark:bg-zinc-700 dark:text-white' : 
-                                                data.status === 'Pending' ? 'bg-neo-yellow text-black' :
-                                                data.status === 'Shortlist' ? 'bg-neo-blue text-white' :
-                                                data.status === 'Accept' ? 'bg-neo-green text-white' : 
-                                                data.status === 'Reject' ? 'bg-red-500 text-white' :
-                                                'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-gray-400'
-                                            }`}>
-                                                {data.status}
-                                            </span>
-                                            {data.resume && (
-                                                <a 
-                                                    href={data.resume} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="text-[10px] font-black uppercase px-2 py-1 border-2 border-neo-black bg-white dark:bg-zinc-800 dark:text-white hover:bg-neo-blue hover:text-white transition-colors flex items-center gap-1 shadow-neo-sm active:translate-y-0.5 active:shadow-none"
-                                                >
-                                                    📄 RESUME
-                                                </a>
-                                            )}
-                                        </div>
+                                      )}
+                                      <div className="overflow-hidden">
+                                        <h4 className="font-black text-md uppercase tracking-tighter leading-none dark:text-white truncate" title={data.name}>{data.name}</h4>
+                                        <p className="font-mono text-xs text-gray-500 dark:text-gray-400 mt-1">{data.title}</p>
+                                      </div>
                                     </div>
-                                    <div className="mt-4">
-                                        <span className="block text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">MATCH SCORE</span>
-                                        <div className={`text-5xl font-black leading-none ${data.score > 70 ? 'text-neo-green' : data.score > 40 ? 'text-neo-yellow' : 'text-red-500'}`}>
-                                            {data.score}%
-                                        </div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <span className={`inline-block text-[10px] font-black uppercase px-2 py-1 border border-black ${
+                                        data.status === 'Applied' ? 'bg-gray-200 text-neo-black dark:bg-zinc-700 dark:text-white' : 
+                                        data.status === 'Pending' ? 'bg-neo-yellow text-black' :
+                                        data.status === 'Shortlist' ? 'bg-neo-blue text-white' :
+                                        data.status === 'Accept' ? 'bg-neo-green text-white' : 
+                                        data.status === 'Reject' ? 'bg-red-500 text-white' :
+                                        'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-gray-400'
+                                      }`}>
+                                        {data.status}
+                                      </span>
+                                      {data.resume && (
+                                        <a href={data.resume} target="_blank" rel="noopener noreferrer" className="text-[10px] font-black uppercase px-2 py-1 border-2 border-neo-black bg-white dark:bg-zinc-800 dark:text-white hover:bg-neo-blue hover:text-white transition-colors flex items-center gap-1 shadow-neo-sm active:translate-y-0.5 active:shadow-none">
+                                          📄 RESUME
+                                        </a>
+                                      )}
                                     </div>
+                                  </div>
+                                  <div className="mt-4">
+                                    <span className="block text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">MATCH SCORE</span>
+                                    <div className={`text-5xl font-black leading-none ${data.score > 70 ? 'text-neo-green' : data.score > 40 ? 'text-neo-yellow' : 'text-red-500'}`}>
+                                      {data.score}%
+                                    </div>
+                                  </div>
                                 </div>
-                                
                                 {/* Middle Column: AI Summary */}
-                                 <div className={`md:col-span-4 bg-gray-50 dark:bg-zinc-800 p-4 border-l-4 border-neo-black dark:border-white flex flex-col ${expandedInsightId === data.id ? '' : 'justify-center'} transition-all`}>
-                                    <span className="font-black text-[10px] uppercase text-neo-black dark:text-white mb-2 flex items-center gap-2">
-                                        <span className="w-2 h-2 bg-neo-blue rounded-full"></span>
-                                        AI Insight
-                                    </span>
-                                    <p className={`font-mono text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium ${expandedInsightId === data.id ? '' : 'line-clamp-6'}`}>
-                                        "{data.insights}"
-                                    </p>
-                                    {data.insights && data.insights.length > 250 && (
-                                        <button 
-                                            onClick={() => setExpandedInsightId(expandedInsightId === data.id ? null : data.id)}
-                                            className="text-[10px] font-black uppercase text-neo-blue hover:text-blue-600 mt-2 text-left w-fit transition-colors"
-                                        >
-                                            {expandedInsightId === data.id ? 'SHOW LESS ▲' : 'VIEW FULL INSIGHT ▼'}
-                                        </button>
-                                    )}
+                                <div className={`md:col-span-4 bg-gray-50 dark:bg-zinc-800 p-4 border-l-4 border-neo-black dark:border-white flex flex-col ${expandedInsightId === data.id ? '' : 'justify-center'} transition-all`}>
+                                  <span className="font-black text-[10px] uppercase text-neo-black dark:text-white mb-2 flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-neo-blue rounded-full"></span>
+                                    AI Insight
+                                  </span>
+                                  <p className={`font-mono text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium ${expandedInsightId === data.id ? '' : 'line-clamp-6'}`}>
+                                    "{data.insights}"
+                                  </p>
+                                  {data.insights && data.insights.length > 250 && (
+                                    <button onClick={() => setExpandedInsightId(expandedInsightId === data.id ? null : data.id)} className="text-[10px] font-black uppercase text-neo-blue hover:text-blue-600 mt-2 text-left w-fit transition-colors">
+                                      {expandedInsightId === data.id ? 'SHOW LESS ▲' : 'VIEW FULL INSIGHT ▼'}
+                                    </button>
+                                  )}
                                 </div>
-
                                 {/* Right Column: Actions */}
                                 <div className="md:col-span-3 flex flex-col gap-2 justify-center">
-                                    {/* Utility buttons */}
-                                    <button className="w-full bg-neo-black text-white font-black py-2.5 text-xs border-2 border-neo-black dark:border-white hover:bg-gray-800 dark:hover:bg-zinc-700 uppercase tracking-wider shadow-sm active:translate-y-0.5 active:shadow-none transition-all flex items-center justify-center gap-2">
-                                        <span>📅</span> Schedule
+                                  <button className="w-full bg-neo-black text-white font-black py-2.5 text-xs border-2 border-neo-black dark:border-white hover:bg-gray-800 dark:hover:bg-zinc-700 uppercase tracking-wider shadow-sm active:translate-y-0.5 active:shadow-none transition-all flex items-center justify-center gap-2">
+                                    <span>📅</span> Schedule
+                                  </button>
+                                  <button className="w-full bg-white dark:bg-zinc-900 text-black dark:text-white font-black py-2.5 text-xs border-2 border-neo-black dark:border-white hover:bg-gray-50 dark:hover:bg-zinc-800 uppercase tracking-wider shadow-sm active:translate-y-0.5 active:shadow-none transition-all flex items-center justify-center gap-2">
+                                    <span>📄</span> Profile
+                                  </button>
+                                  <div className="border-t border-gray-200 dark:border-zinc-700 my-1"></div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Pending')} className={`py-2 text-[10px] font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-1 ${data.status === 'Pending' ? 'bg-neo-yellow text-black border-neo-black cursor-default' : 'bg-white dark:bg-zinc-900 text-neo-black dark:text-white border-neo-black dark:border-white hover:bg-neo-yellow hover:text-black'} ${data.status === 'Accept' || data.status === 'Reject' ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={data.status === 'Pending' || data.status === 'Accept' || data.status === 'Reject'}>
+                                      ⏳ Pending
                                     </button>
-                                    <button className="w-full bg-white dark:bg-zinc-900 text-black dark:text-white font-black py-2.5 text-xs border-2 border-neo-black dark:border-white hover:bg-gray-50 dark:hover:bg-zinc-800 uppercase tracking-wider shadow-sm active:translate-y-0.5 active:shadow-none transition-all flex items-center justify-center gap-2">
-                                        <span>📄</span> Profile
+                                    <button onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Shortlist')} className={`py-2 text-[10px] font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-1 ${data.status === 'Shortlist' ? 'bg-neo-blue text-white border-neo-black cursor-default' : 'bg-white dark:bg-zinc-900 text-neo-black dark:text-white border-neo-black dark:border-white hover:bg-neo-blue hover:text-white'} ${data.status === 'Accept' || data.status === 'Reject' ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={data.status === 'Shortlist' || data.status === 'Accept' || data.status === 'Reject'}>
+                                      📋 Shortlist
                                     </button>
-                                    
-                                    {/* Status Divider */}
-                                    <div className="border-t border-gray-200 dark:border-zinc-700 my-1"></div>
-                                    
-                                    {/* Status Action Buttons */}
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {/* Pending - Yellow */}
-                                        <button 
-                                            onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Pending')}
-                                            className={`py-2 text-[10px] font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-1 ${
-                                                data.status === 'Pending' 
-                                                    ? 'bg-neo-yellow text-black border-neo-black cursor-default' 
-                                                    : 'bg-white dark:bg-zinc-900 text-neo-black dark:text-white border-neo-black dark:border-white hover:bg-neo-yellow hover:text-black'
-                                            } ${data.status === 'Accept' || data.status === 'Reject' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                            disabled={data.status === 'Pending' || data.status === 'Accept' || data.status === 'Reject'}
-                                        >
-                                            ⏳ Pending
-                                        </button>
-                                        
-                                        {/* Shortlist - Blue */}
-                                        <button 
-                                            onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Shortlist')}
-                                            className={`py-2 text-[10px] font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-1 ${
-                                                data.status === 'Shortlist' 
-                                                    ? 'bg-neo-blue text-white border-neo-black cursor-default' 
-                                                    : 'bg-white dark:bg-zinc-900 text-neo-black dark:text-white border-neo-black dark:border-white hover:bg-neo-blue hover:text-white'
-                                            } ${data.status === 'Accept' || data.status === 'Reject' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                            disabled={data.status === 'Shortlist' || data.status === 'Accept' || data.status === 'Reject'}
-                                        >
-                                            📋 Shortlist
-                                        </button>
-                                    </div>
-                                    
-                                    {/* Accept - Full width Green */}
-                                    <button 
-                                        onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Accept')}
-                                        className={`w-full py-2.5 text-xs font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-2 ${
-                                            data.status === 'Accept' 
-                                                ? 'bg-neo-green text-white border-neo-black cursor-default shadow-neo-sm' 
-                                                : 'bg-neo-green text-white border-neo-black hover:bg-green-600 shadow-sm'
-                                        } ${data.status === 'Reject' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        disabled={data.status === 'Accept' || data.status === 'Reject'}
-                                    >
-                                        ✅ Accept
-                                    </button>
-                                    
-                                    {/* Reject - Outlined Red */}
-                                    <button 
-                                        onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Reject')}
-                                        className={`w-full py-2 text-xs font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-2 ${
-                                            data.status === 'Reject' 
-                                                ? 'bg-red-500 text-white border-red-500 cursor-default' 
-                                                : 'border-red-500 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                                        } ${data.status === 'Accept' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        disabled={data.status === 'Reject' || data.status === 'Accept'}
-                                    >
-                                        ❌ Reject
-                                    </button>
+                                  </div>
+                                  <button onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Accept')} className={`w-full py-2.5 text-xs font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-2 ${data.status === 'Accept' ? 'bg-neo-green text-white border-neo-black cursor-default shadow-neo-sm' : 'bg-neo-green text-white border-neo-black hover:bg-green-600 shadow-sm'} ${data.status === 'Reject' ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={data.status === 'Accept' || data.status === 'Reject'}>
+                                    ✅ Accept
+                                  </button>
+                                  <button onClick={() => handleUpdateStatus(selectedJobId, data.applicationId, 'Reject')} className={`w-full py-2 text-xs font-black uppercase tracking-wider border-2 transition-all active:translate-y-0.5 flex items-center justify-center gap-2 ${data.status === 'Reject' ? 'bg-red-500 text-white border-red-500 cursor-default' : 'border-red-500 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'}`} disabled={data.status === 'Reject' || data.status === 'Accept'}>
+                                    ❌ Reject
+                                  </button>
                                 </div>
+                              </div>
+                            );
+                          })}
+
+                          {Math.ceil(allApps.length / appPageSize) > 1 && (
+                            <div className="flex flex-wrap justify-center items-center gap-2 mt-8 py-4 border-t-2 border-gray-100 dark:border-zinc-800">
+                              <button onClick={() => setCurrentAppPage(prev => Math.max(1, prev - 1))} disabled={currentAppPage === 1} className="p-1.5 border-2 border-neo-black dark:border-white bg-white dark:bg-zinc-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fff] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neo-yellow dark:hover:bg-neo-yellow dark:hover:text-black transition-colors">
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+                              <div className="flex gap-1.5">
+                                {Array.from({ length: Math.ceil(allApps.length / appPageSize) }, (_, i) => i + 1).map(page => (
+                                  <button key={page} onClick={() => setCurrentAppPage(page)} className={`w-8 h-8 flex items-center justify-center border-2 font-black text-xs transition-all ${currentAppPage === page ? "bg-neo-blue text-white border-neo-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] translate-x-[-1px] translate-y-[-1px]" : "bg-white dark:bg-zinc-800 text-neo-black dark:text-white border-neo-black dark:border-white hover:bg-gray-100 dark:hover:bg-zinc-700 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:shadow-[1px_1px_0px_0px_#fff]"}`}>
+                                    {page}
+                                  </button>
+                                ))}
+                              </div>
+                              <button onClick={() => setCurrentAppPage(prev => Math.min(Math.ceil(allApps.length / appPageSize), prev + 1))} disabled={currentAppPage === Math.ceil(allApps.length / appPageSize)} className="p-1.5 border-2 border-neo-black dark:border-white bg-white dark:bg-zinc-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_#fff] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neo-yellow dark:hover:bg-neo-yellow dark:hover:text-black transition-colors">
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
                             </div>
-                        );
-                    })
+                          )}
+                        </>
+                      );
+                    })()}
+                  </>
                 ) : (
-                    <div className="text-center py-12 text-gray-500 font-mono">
-                        No applications received yet.
-                    </div>
+                  <div className="text-center py-12 text-gray-500 font-mono">
+                    No applications received yet.
+                  </div>
                 )}
              </div>
           </div>

@@ -34,17 +34,11 @@ export default function AuthInitializer() {
       
       console.log('🔄 AuthInitializer: Token found, attempting to restore session...');
       
-      // Determine probable role based on path if user is not set
-      let role = 'employee';
-      if (pathname.startsWith('/recruiter')) {
-        role = 'recuter';
-      }
-
       // Check if we already have a user in the store (from cookie persistence)
       const currentRole = useAuthStore.getState().user?.role;
-      
       try {
-        await fetchProfile(currentRole || role);
+        // Use auto-detect fetch to try recruiter first then employee
+        await fetchProfile(currentRole || undefined);
         console.log('✅ AuthInitializer: Session restored successfully');
       } catch (error) {
         console.error('❌ AuthInitializer: Failed to restore session', error);

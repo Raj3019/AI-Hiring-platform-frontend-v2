@@ -18,8 +18,18 @@ const Marquee = ({ text, reverse, className }) => (
 const Content = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { user } = useAuthStore();
+    const { user, isAuthenticated } = useAuthStore();
     
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            if (user.role?.toLowerCase() === 'recuter' || user.role?.toLowerCase() === 'recruiter') {
+                router.push('/recruiter/dashboard');
+            } else {
+                router.push('/candidate/dashboard');
+            }
+        }
+    }, [isAuthenticated, user, router]);
+
     const isRecruiterMode = searchParams.get('mode') === 'recruiter';
   
     const candidateTestimonials = [

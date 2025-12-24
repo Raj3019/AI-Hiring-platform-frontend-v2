@@ -48,21 +48,38 @@ function RegisterForm() {
   // Redirect authenticated users away from register page
   useEffect(() => {
     if (!mounted) return;
-    
-    // Check both store state and cookies for auth
-    const hasAuth = (isAuthenticated && user && user.email) || hasTokenInCookies();
-    
-    if (hasAuth) {
-      // If we have token but no user data, try to fetch profile first
-      if (hasTokenInCookies() && (!user || !user.role)) {
+    // Prefer parsing persisted auth cookie first to avoid flashes
+    if (hasTokenInCookies()) {
+      const authCookie = cookieStorage.getItem('auth-storage');
+      if (authCookie) {
+        try {
+          const parsed = JSON.parse(authCookie);
+          const stored = parsed?.state || parsed;
+          const storedUser = stored?.user || stored;
+          const storedRole = storedUser?.role?.toLowerCase();
+          if (storedRole) {
+            const isRec = storedRole === 'recruiter' || storedRole === 'recuter';
+            const redirectTo = isRec ? '/recruiter/dashboard' : '/candidate/dashboard';
+            console.log('Register page: redirecting from cookie:', { storedRole, redirectTo });
+            router.replace(redirectTo);
+            return;
+          }
+        } catch (e) {
+          // ignore and continue
+        }
+      }
+
+      if (!user || !user.role) {
         const tryRestoreSession = async () => {
-          await fetchProfile(isRecruiter ? 'recuter' : 'employee');
+          await fetchProfile();
         };
         tryRestoreSession();
         return;
       }
-      
-      // Normalize role (API returns 'Employee', frontend uses 'candidate')
+    }
+
+    const hasAuth = (isAuthenticated && user && user.email);
+    if (hasAuth) {
       const userRole = user?.role?.toLowerCase();
       const isRecruiterRole = userRole === 'recruiter' || userRole === 'recuter';
       const redirectTo = isRecruiterRole ? '/recruiter/dashboard' : '/candidate/dashboard';

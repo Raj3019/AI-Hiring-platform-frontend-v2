@@ -1,7 +1,8 @@
 import React from 'react';
 import { cva } from 'class-variance-authority';
-import { cn } from '@/lib/utils'; // Assuming you have this utility
-import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Loader2, ChevronLeft, ChevronRight, Check, Calendar as CalendarIcon, X } from 'lucide-react';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, setMonth, setYear, getYear, getMonth } from 'date-fns';
 
 // --- Button ---
 const buttonVariants = cva(
@@ -141,6 +142,162 @@ export const NeoModal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-l
           </div>
         </NeoCard>
       </div>
+    </div>
+  );
+};
+
+// --- NeoCheckbox ---
+export const NeoCheckbox = React.forwardRef(({ className, checked, onCheckedChange, label, id, disabled, ...props }, ref) => {
+  return (
+    <div className={cn("flex items-center gap-3", className)}>
+      <div 
+        className={cn(
+          "w-6 h-6 border-2 border-neo-black bg-white flex items-center justify-center transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none dark:border-white dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] dark:bg-zinc-900",
+           checked && "bg-neo-yellow dark:bg-neo-yellow",
+           disabled && "opacity-50 cursor-not-allowed"
+        )}
+        onClick={() => !disabled && onCheckedChange(!checked)}
+        role="checkbox"
+        aria-checked={checked}
+        tabIndex={0}
+      >
+        {checked && <Check className="w-4 h-4 text-neo-black stroke-[4]" />}
+      </div>
+      {label && (
+        <label 
+          htmlFor={id} 
+          className={cn("font-bold text-sm uppercase cursor-pointer dark:text-white select-none", disabled && "cursor-not-allowed text-gray-400")}
+          onClick={() => !disabled && onCheckedChange(!checked)}
+        >
+          {label}
+        </label>
+      )}
+    </div>
+  );
+});
+NeoCheckbox.displayName = "NeoCheckbox";
+
+// --- NeoDatePicker ---
+export const NeoDatePicker = ({ value, onChange, label, placeholder = "Select date", minDate, maxDate, ...props }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [viewDate, setViewDate] = React.useState(value ? new Date(value) : new Date());
+  
+  // Handle outside click to close
+  const containerRef = React.useRef(null);
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Update view date if value changes externally
+  React.useEffect(() => {
+    if (value) setViewDate(new Date(value));
+  }, [value]);
+
+  const handleDateClick = (day) => {
+    // Return formatted date string YYYY-MM-DD
+    const formatted = format(day, "yyyy-MM-dd");
+    onChange({ target: { name: props.name, value: formatted } });
+    setIsOpen(false);
+  };
+
+  const years = Array.from({ length: 100 }, (_, i) => getYear(new Date()) - i); // Last 100 years
+  const months = [
+    "January", "February", "March", "April", "May", "June", 
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      {label && <label className="block text-sm font-bold text-neo-black dark:text-white mb-1.5">{label}</label>}
+      
+      <div 
+        className="w-full bg-white border-2 border-neo-black p-3 flex items-center justify-between cursor-pointer focus-within:ring-2 focus-within:ring-neo-yellow dark:bg-zinc-900 dark:border-white dark:text-white"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className={cn("font-mono text-sm", !value && "text-gray-500")}>
+          {value ? format(new Date(value), "dd MMM yyyy") : placeholder}
+        </span>
+        <CalendarIcon className="w-4 h-4 opacity-50" />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 mt-2 p-4 bg-white border-2 border-neo-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-[320px] dark:bg-black dark:border-white dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] animate-in fade-in zoom-in-95 duration-200">
+           
+           {/* Header Controls */}
+           <div className="flex justify-between items-center mb-4 gap-2">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setViewDate(subMonths(viewDate, 1)); }}
+                className="p-1 border-2 border-neo-black hover:bg-gray-100 dark:border-white dark:text-white dark:hover:bg-zinc-800"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              
+              <div className="flex gap-2">
+                 <select 
+                   value={getMonth(viewDate)} 
+                   onChange={(e) => setViewDate(setMonth(viewDate, parseInt(e.target.value)))}
+                   className="font-bold text-xs bg-transparent border-none focus:outline-none dark:text-white cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 p-1 rounded"
+                   onClick={(e) => e.stopPropagation()}
+                 >
+                    {months.map((m, i) => <option key={i} value={i} className="text-black">{m}</option>)}
+                 </select>
+                 <select 
+                   value={getYear(viewDate)} 
+                   onChange={(e) => setViewDate(setYear(viewDate, parseInt(e.target.value)))}
+                   className="font-bold text-xs bg-transparent border-none focus:outline-none dark:text-white cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 p-1 rounded"
+                   onClick={(e) => e.stopPropagation()}
+                 >
+                    {years.map((y) => <option key={y} value={y} className="text-black">{y}</option>)}
+                 </select>
+              </div>
+
+              <button 
+                 onClick={(e) => { e.stopPropagation(); setViewDate(addMonths(viewDate, 1)); }}
+                 className="p-1 border-2 border-neo-black hover:bg-gray-100 dark:border-white dark:text-white dark:hover:bg-zinc-800"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+           </div>
+
+           {/* Days Grid */}
+           <div className="grid grid-cols-7 mb-2 text-center">
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+                <div key={d} className="text-xs font-black text-gray-400 uppercase">{d}</div>
+              ))}
+           </div>
+           
+           <div className="grid grid-cols-7 gap-1">
+              {eachDayOfInterval({
+                 start: startOfWeek(startOfMonth(viewDate)),
+                 end: endOfWeek(endOfMonth(viewDate))
+              }).map((day, idx) => {
+                 const isSelected = value && isSameDay(new Date(value), day);
+                 const isCurrentMonth = isSameMonth(day, viewDate);
+                 
+                 return (
+                   <button
+                     key={idx}
+                     onClick={(e) => { e.stopPropagation(); handleDateClick(day); }}
+                     className={cn(
+                       "h-8 w-8 flex items-center justify-center text-sm font-bold border-2 border-transparent relative hover:border-neo-black dark:hover:border-white dark:text-white transition-all rounded-sm",
+                       !isCurrentMonth && "text-gray-300 dark:text-zinc-700",
+                       isSelected && "bg-neo-yellow text-neo-black border-neo-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10",
+                       isSameDay(day, new Date()) && !isSelected && "border-neo-black border-dashed"
+                     )}
+                   >
+                     {format(day, 'd')}
+                   </button>
+                 );
+              })}
+           </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React from 'react';
-import { NeoButton } from '@/components/ui/neo'; // Assuming we might need buttons later, but for now just text links
+import { NeoButton } from '@/components/ui/neo';
+import Link from 'next/link';
 
 export default function Footer() {
   return (
@@ -17,6 +18,7 @@ export default function Footer() {
                     <div>
                         <h3 className="font-bold text-neo-pink mb-4 uppercase">Platform</h3>
                         <ul className="space-y-2 text-sm text-gray-300">
+                            <li><Link href="/about" className="hover:text-white hover:underline">About</Link></li>
                             <li><a href="#" className="hover:text-white hover:underline">Features</a></li>
                             <li><a href="#" className="hover:text-white hover:underline">Pricing</a></li>
                             <li><a href="#" className="hover:text-white hover:underline">Enterprise</a></li>

@@ -91,12 +91,10 @@ export default function AuthGuard({ children, allowedRoles }) {
         return;
       }
       
-      // If token exists but store not hydrated yet, try to fetch profile
+      // If token exists but store not hydrated yet, try to fetch profile (auto-detect)
       if (hasTokenInCookies() && !isAuthenticated) {
-        console.log('🔄 Token found in cookies but store not hydrated, attempting to restore session...');
-        // Determine role from path
-        const role = pathname.startsWith('/recruiter') ? 'recuter' : 'employee';
-        await fetchProfile(role);
+        console.log('🔄 Token found in cookies but store not hydrated, attempting to restore session (auto)...');
+        await fetchProfile();
       }
       
       setIsHydrating(false);

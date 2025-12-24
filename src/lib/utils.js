@@ -59,3 +59,34 @@ export const scrubStorage = () => {
     sessionStorage.clear();
   }
 };
+
+export const getMissingProfileFields = (user) => {
+  if (!user) return [];
+  const requiredFields = [
+    'fullName', 'phone', 'dateOfBirth', 'gender',
+    'currentCity', 'state', 'country', 'zipCode', 'resumeFileURL'
+  ];
+  const missing = [];
+
+  // Check top-level strings
+  for (const field of requiredFields) {
+    const value = user[field];
+    if (!value || (typeof value === 'string' && value.trim() === '')) {
+      missing.push(field);
+    }
+  }
+
+  // Check Arrays
+  if (!user.skills || user.skills.length === 0) missing.push('skills');
+  if (!user.languages || user.languages.length === 0) missing.push('languages');
+
+  // Check Education
+  if (!user.education?.tenth?.schoolName) missing.push('education.tenth');
+  if (!user.education?.graduation?.degree) missing.push('education.graduation');
+
+  // Check Job Preferences
+  if (!user.jobPreferences?.jobType || user.jobPreferences.jobType.length === 0) missing.push('jobPreferences.jobType');
+  if (!user.jobPreferences?.workMode || user.jobPreferences.workMode.length === 0) missing.push('jobPreferences.workMode');
+
+  return missing;
+};
