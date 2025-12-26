@@ -182,12 +182,12 @@ const NavbarContent = () => {
                         MY PROFILE
                         </button>
                     </Link>
-                    <button 
+                    {/* <button 
                       onClick={() => setShowProfileMenu(false)}
                       className="block w-full text-left px-4 py-3 text-sm font-bold text-neo-black dark:text-white hover:bg-neo-blue hover:text-white border-b-2 border-neo-black dark:border-white"
                       >
                       SETTINGS
-                    </button>
+                    </button> */}
                     <button 
                       onClick={() => { logout(); setShowProfileMenu(false); router.push('/'); }}
                       className="block w-full text-left px-4 py-3 text-sm font-bold hover:bg-neo-orange hover:text-white text-red-600"

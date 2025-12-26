@@ -5,15 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { NeoButton, NeoCard, NeoInput } from '@/components/ui/neo';
 import { Briefcase, User, Eye, EyeOff } from 'lucide-react';
-import { cn, cookieStorage } from '@/lib/utils';
-
-// Check if token exists in cookies (for HMR protection)
-const hasTokenInCookies = () => {
-  if (typeof document === 'undefined') return false;
-  const token = cookieStorage.getItem('token');
-  const authStorage = cookieStorage.getItem('auth-storage');
-  return !!(token || authStorage);
-};
+import { cn, cookieStorage, hasValidAuth } from '@/lib/utils';
 
 // Create a component that uses useSearchParams
 function LoginForm() {
@@ -42,7 +34,7 @@ function LoginForm() {
   useEffect(() => {
     if (!mounted) return;
     // First try to read persisted auth from cookie to avoid flashes
-    if (hasTokenInCookies()) {
+    if (hasValidAuth()) {
       const authCookie = cookieStorage.getItem('auth-storage');
       if (authCookie) {
         try {
@@ -110,6 +102,8 @@ function LoginForm() {
       setIsLoading(false);
     }
   };
+
+  if (!mounted || hasValidAuth()) return null;
 
   return (
     <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-neo-bg dark:bg-zinc-950 p-4 transition-colors">

@@ -3,8 +3,11 @@ import React, { useState, useEffect } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import { useAuthStore } from '@/lib/store';
 import { recruiterAPI } from '@/lib/api';
-import { NeoCard, NeoButton, NeoInput, NeoBadge, NeoDatePicker, NeoCheckbox } from '@/components/ui/neo';
-import { User, Briefcase, MapPin, GraduationCap, Globe, Edit2, Save, X, Trophy } from 'lucide-react';
+import { getMissingProfileFields, formatDate } from '@/lib/utils';
+import { NeoCard, NeoButton, NeoInput, NeoBadge, NeoDatePicker, NeoCheckbox, NeoRadio } from '@/components/ui/neo';
+import { User, Briefcase, MapPin, GraduationCap, Globe, Edit2, Save, X, Trophy, Plus, Trash2 } from 'lucide-react';
+
+import ProfileCompletionBanner from '@/components/shared/ProfileCompletionBanner';
 
 // Helper component for displaying field in view mode vs edit mode
 const DisplayField = ({ label, value, name, type = "text", onChange, isTextarea = false, placeholder = "", isEditing, ...props }) => {
@@ -35,7 +38,9 @@ const DisplayField = ({ label, value, name, type = "text", onChange, isTextarea 
   return (
     <div>
       <label className="block font-bold text-xs mb-1 text-gray-400 dark:text-gray-500 uppercase">{label}</label>
-      <span className="font-bold dark:text-white text-lg">{value || 'Not specified'}</span>
+      <span className="font-bold dark:text-white text-lg">
+        {type === 'date' ? formatDate(value) : (value || 'Not specified')}
+      </span>
     </div>
   );
 };
@@ -52,33 +57,51 @@ export default function RecruiterProfilePage() {
   const [formData, setFormData] = useState({
     fullName: user?.fullName || user?.name || '',
     email: user?.email || '',
+    headline: user?.headline || '',
     phone: user?.phone || '',
     dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
     gender: user?.gender || '',
+    
+    // Address
     currentCity: user?.currentCity || '',
     area: user?.area || '',
     state: user?.state || '',
     country: user?.country || 'India',
     zipCode: user?.zipCode || '',
+    
     about: user?.about || '',
     skills: user?.skills || [],
+    skillsString: user?.skills?.join(', ') || '',
     experienceYears: user?.experienceYears || 0,
     isFresher: user?.experienceYears === 0,
+    
+    // Education Object (Matching Mongoose Schema)
     education: user?.education || {
-      tenth: {}, juniorCollege: {}, graduation: {}, postGraduation: {}, phd: {}
+        tenth: { schoolName: '', board: '', percentage: '', passingYear: '', city: '', state: '', grade: '' },
+        juniorCollege: { collegeName: '', board: '', stream: '', percentage: '', passingYear: '', city: '', state: '', grade: '' },
+        graduation: { collegeName: '', university: '', degree: '', specialization: '', percentage: '', cgpa: '', passingYear: '', city: '', state: '' },
+        postGraduation: { collegeName: '', university: '', degree: '', specialization: '', percentage: '', cgpa: '', passingYear: '', city: '', state: '' },
+        phd: { university: '', fieldOfStudy: '', thesisTitle: '', year: '' }
     },
+
     workExperience: user?.workExperience || [],
     languages: user?.languages || [],
     certifications: user?.certifications || [],
+    
     currentRole: user?.currentRole || '',
     currentEmployer: user?.currentEmployer || '',
     companyURL: user?.companyURL || '',
     totalHires: user?.totalHires || 0,
+    
     socials: user?.socials || { linkedin: '', twitter: '' },
     portfolioUrl: user?.portfolioUrl || '',
     linkedinUrl: user?.linkedinUrl || '',
     githubUrl: user?.githubUrl || '',
+    
     preferences: user?.preferences || { industries: [], jobTypes: [] },
+    industriesString: user?.preferences?.industries?.join(', ') || '',
+    jobTypesString: user?.preferences?.jobTypes?.join(', ') || '',
+    
     resumeFileURL: user?.resumeFileURL || '',
     profilePicture: user?.profilePicture || '',
     createdAt: user?.createdAt || ''
@@ -87,10 +110,16 @@ export default function RecruiterProfilePage() {
   // Sync with store/API data
   const syncFormData = (apiData) => {
     if (!apiData) return;
+    
+    const edu = apiData.education || {};
+    const jp = apiData.preferences || apiData.jobPreferences || {};
+    const soc = apiData.socials || {};
+
     setFormData(prev => ({
       ...prev,
       fullName: apiData.fullName || apiData.name || '',
       email: apiData.email || '',
+      headline: apiData.headline || '',
       phone: apiData.phone || '',
       dateOfBirth: apiData.dateOfBirth ? new Date(apiData.dateOfBirth).toISOString().split('T')[0] : '',
       gender: apiData.gender || '',
@@ -100,25 +129,89 @@ export default function RecruiterProfilePage() {
       country: apiData.country || 'India',
       zipCode: apiData.zipCode || '',
       about: apiData.about || apiData.bio || '',
+      
       skills: apiData.skills || [],
       skillsString: apiData.skills?.join(', ') || '',
       experienceYears: apiData.experienceYears || 0,
       isFresher: apiData.isFresher !== undefined ? apiData.isFresher : (apiData.experienceYears === 0 || apiData.workExperience?.length === 0),
-      education: apiData.education || { tenth: {}, juniorCollege: {}, graduation: {}, postGraduation: {}, phd: {} },
+      
+      // Education (Support both structures)
+      education: {
+        tenth: { 
+            schoolName: edu.tenth?.schoolName || '', 
+            board: edu.tenth?.board || '', 
+            percentage: edu.tenth?.percentage || '', 
+            passingYear: edu.tenth?.passingYear || edu.tenth?.year || '',
+            city: edu.tenth?.city || '',
+            state: edu.tenth?.state || '',
+            grade: edu.tenth?.grade || ''
+        },
+        juniorCollege: { 
+            collegeName: edu.juniorCollege?.collegeName || '', 
+            board: edu.juniorCollege?.board || '', 
+            stream: edu.juniorCollege?.stream || '', 
+            percentage: edu.juniorCollege?.percentage || '', 
+            passingYear: edu.juniorCollege?.passingYear || edu.juniorCollege?.year || '',
+            city: edu.juniorCollege?.city || '',
+            state: edu.juniorCollege?.state || '',
+            grade: edu.juniorCollege?.grade || ''
+        },
+        graduation: { 
+            collegeName: edu.graduation?.collegeName || '', 
+            university: edu.graduation?.university || '', 
+            degree: edu.graduation?.degree || '', 
+            specialization: edu.graduation?.specialization || '', 
+            percentage: edu.graduation?.percentage || '', 
+            cgpa: edu.graduation?.cgpa || '', 
+            passingYear: edu.graduation?.passingYear || edu.graduation?.year || '',
+            city: edu.graduation?.city || '',
+            state: edu.graduation?.state || '',
+            grade: edu.graduation?.grade || ''
+        },
+        postGraduation: { 
+            collegeName: edu.postGraduation?.collegeName || '', 
+            university: edu.postGraduation?.university || '', 
+            degree: edu.postGraduation?.degree || '', 
+            specialization: edu.postGraduation?.specialization || '', 
+            percentage: edu.postGraduation?.percentage || '', 
+            cgpa: edu.postGraduation?.cgpa || '', 
+            passingYear: edu.postGraduation?.passingYear || edu.postGraduation?.year || '',
+            city: edu.postGraduation?.city || '',
+            state: edu.postGraduation?.state || '',
+            grade: edu.postGraduation?.grade || ''
+        },
+        phd: {
+            university: edu.phd?.university || '',
+            fieldOfStudy: edu.phd?.fieldOfStudy || '',
+            thesisTitle: edu.phd?.thesisTitle || '',
+            year: edu.phd?.year || ''
+        }
+      },
+
       workExperience: apiData.workExperience || [],
       languages: apiData.languages || [],
       certifications: apiData.certifications || [],
+      
       currentRole: apiData.currentRole || '',
       currentEmployer: apiData.currentEmployer || '',
       companyURL: apiData.companyURL || '',
       totalHires: apiData.totalHires || 0,
-      socials: apiData.socials || { linkedin: '', twitter: '' },
+      
+      socials: {
+          linkedin: soc.linkedin || apiData.linkedinUrl || '',
+          twitter: soc.twitter || ''
+      },
       portfolioUrl: apiData.portfolioUrl || '',
-      linkedinUrl: apiData.linkedinUrl || '',
+      linkedinUrl: apiData.linkedinUrl || soc.linkedin || '',
       githubUrl: apiData.githubUrl || '',
-      preferences: apiData.preferences || { industries: [], jobTypes: [] },
-      industriesString: apiData.preferences?.industries?.join(', ') || '',
-      jobTypesString: apiData.preferences?.jobTypes?.join(', ') || '',
+      
+      preferences: {
+          industries: jp.industries || [],
+          jobTypes: jp.jobTypes || []
+      },
+      industriesString: (jp.industries || []).join(', '),
+      jobTypesString: (jp.jobTypes || []).join(', '),
+      
       resumeFileURL: apiData.resumeFileURL || apiData.resumeUrl || apiData.resume || '',
       profilePicture: apiData.profilePicture || '',
       createdAt: apiData.createdAt || ''
@@ -191,6 +284,22 @@ export default function RecruiterProfilePage() {
       }
     }));
   };
+
+  const handleLanguageChange = (index, field, value) => {
+    const updated = [...formData.languages];
+    updated[index] = { ...updated[index], [field]: value };
+    setFormData(prev => ({ ...prev, languages: updated }));
+  };
+  const addLanguage = () => setFormData(prev => ({ ...prev, languages: [...prev.languages, { language: '', proficiency: 'Beginner' }] }));
+  const removeLanguage = (index) => setFormData(prev => ({ ...prev, languages: prev.languages.filter((_, i) => i !== index) }));
+
+  const handleCertificationChange = (index, field, value) => {
+    const updated = [...formData.certifications];
+    updated[index] = { ...updated[index], [field]: value };
+    setFormData(prev => ({ ...prev, certifications: updated }));
+  };
+  const addCertification = () => setFormData(prev => ({ ...prev, certifications: [...prev.certifications, { name: '', issuingOrganization: '', issueDate: '', expiryDate: '', credentialURL: '' }] }));
+  const removeCertification = (index) => setFormData(prev => ({ ...prev, certifications: prev.certifications.filter((_, i) => i !== index) }));
 
   const nextStep = () => setActiveStep(prev => Math.min(prev + 1, 4));
   const prevStep = () => setActiveStep(prev => Math.max(prev - 1, 1));
@@ -305,7 +414,10 @@ export default function RecruiterProfilePage() {
           </div>
         </div>
       ) : (
-      <div className="container mx-auto px-4 py-12 flex flex-col md:flex-row gap-8">
+      <div className="min-h-screen bg-neo-bg dark:bg-zinc-950">
+        <ProfileCompletionBanner />
+        <div className="container mx-auto px-4 py-12 flex flex-col md:flex-row gap-8">
+
         {successMessage && (
           <div className="fixed top-24 right-4 z-50 animate-in slide-in-from-right-5">
             <div className="bg-neo-green border-2 border-neo-black dark:border-white px-6 py-3 shadow-neo dark:shadow-[4px_4px_0px_0px_#ffffff]">
@@ -334,7 +446,7 @@ export default function RecruiterProfilePage() {
                <input type="file" id="profile-pic-input" className="hidden" accept="image/*" onChange={handleProfilePicUpload} />
             </div>
             <h2 className="text-2xl font-black uppercase dark:text-white">{formData.fullName}</h2>
-            <p className="font-mono text-gray-500 dark:text-gray-400 mb-2">{formData.currentRole || 'Recruiter'}</p>
+            <p className="font-mono text-gray-500 dark:text-gray-400 mb-2">{formData.headline || ''}</p>
             
             <div className="flex justify-center items-center gap-2 mb-6 text-sm text-gray-500 dark:text-gray-400 font-bold">
                <MapPin className="w-4 h-4"/> {formData.currentCity}, {formData.country}
@@ -420,6 +532,7 @@ export default function RecruiterProfilePage() {
                   {activeStep === 1 && (
                       <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                           <DisplayField isEditing={isEditing} label="Full Name" value={formData.fullName} name="fullName" onChange={handleInputChange} />
+                          <DisplayField isEditing={isEditing} label="Headline" value={formData.headline} name="headline" onChange={handleInputChange} />
                           <DisplayField isEditing={isEditing} label="About You" value={formData.about} name="about" onChange={handleInputChange} isTextarea={true} placeholder="Recruiter bio..." />
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <DisplayField isEditing={isEditing} label="Phone Number" value={formData.phone} name="phone" onChange={handleInputChange} placeholder="10 Digit Number" />
@@ -481,7 +594,7 @@ export default function RecruiterProfilePage() {
                                                   <select 
                                                     value={formData.education[level]?.board || ''} 
                                                     onChange={(e) => handleEducationChange(level, 'board', e.target.value)}
-                                                    className="w-full bg-white dark:bg-zinc-900 border-2 border-neo-black dark:border-white p-2 font-mono text-sm"
+                                                    className="w-full bg-white dark:bg-zinc-900 border-2 border-neo-black dark:border-white p-2 font-mono text-sm dark:text-white focus:outline-none"
                                                   >
                                                       <option value="">Select...</option>
                                                       <option value="CBSE">CBSE</option>
@@ -489,7 +602,7 @@ export default function RecruiterProfilePage() {
                                                       <option value="State Board">State Board</option>
                                                       <option value="Other">Other</option>
                                                   </select>
-                                               ) : <NeoInput value={formData.education[level]?.board || ''} disabled />}
+                                               ) : <span className="font-bold dark:text-white block">{formData.education[level]?.board || 'Not specified'}</span>}
                                              </div>
                                           ) : (
                                             <div>
@@ -509,7 +622,7 @@ export default function RecruiterProfilePage() {
                                                   <select 
                                                     value={formData.education[level]?.stream || ''} 
                                                     onChange={(e) => handleEducationChange(level, 'stream', e.target.value)}
-                                                    className="w-full bg-white dark:bg-zinc-900 border-2 border-neo-black dark:border-white p-2 font-mono text-sm"
+                                                    className="w-full bg-white dark:bg-zinc-900 border-2 border-neo-black dark:border-white p-2 font-mono text-sm dark:text-white focus:outline-none"
                                                   >
                                                       <option value="">Select...</option>
                                                       <option value="Science">Science</option>
@@ -517,7 +630,7 @@ export default function RecruiterProfilePage() {
                                                       <option value="Arts">Arts</option>
                                                       <option value="Other">Other</option>
                                                   </select>
-                                                ) : <NeoInput value={formData.education[level]?.stream || ''} disabled />}
+                                                ) : <span className="font-bold dark:text-white block">{formData.education[level]?.stream || 'Not specified'}</span>}
                                             </div>
                                           )}
 
@@ -543,57 +656,219 @@ export default function RecruiterProfilePage() {
                                           )}
 
                                           {level === 'phd' && (
-                                              <div>
-                                                  <label className="block font-bold text-xs mb-1 dark:text-white">Thesis Title</label>
-                                                  <NeoInput 
-                                                    value={formData.education[level]?.thesisTitle || ''} 
-                                                    onChange={(e) => handleEducationChange(level, 'thesisTitle', e.target.value)}
-                                                    disabled={!isEditing} 
-                                                  />
-                                              </div>
+                                              <>
+                                                <div className="md:col-span-2">
+                                                    <label className="block font-bold text-xs mb-1 dark:text-white">Field of Study</label>
+                                                    <NeoInput 
+                                                      value={formData.education[level]?.fieldOfStudy || ''} 
+                                                      onChange={(e) => handleEducationChange(level, 'fieldOfStudy', e.target.value)}
+                                                      disabled={!isEditing} 
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-2">
+                                                    <label className="block font-bold text-xs mb-1 dark:text-white">Thesis Title</label>
+                                                    <NeoInput 
+                                                      value={formData.education[level]?.thesisTitle || ''} 
+                                                      onChange={(e) => handleEducationChange(level, 'thesisTitle', e.target.value)}
+                                                      disabled={!isEditing} 
+                                                    />
+                                                </div>
+                                              </>
                                           )}
 
                                           <div>
                                               <label className="block font-bold text-xs mb-1 dark:text-white">Percentage / CGPA</label>
                                               <NeoInput 
+                                                type="number"
                                                 value={formData.education[level]?.percentage || formData.education[level]?.cgpa || ''} 
-                                                onChange={(e) => handleEducationChange(level, level === 'phd' ? 'percentage' : 'percentage', e.target.value)}
+                                                onChange={(e) => handleEducationChange(level, level.includes('graduation') && !level.includes('tenth') ? 'cgpa' : 'percentage', e.target.value)}
+                                                disabled={!isEditing} 
+                                              />
+                                          </div>
+                                          <div>
+                                              <label className="block font-bold text-xs mb-1 dark:text-white">Grade</label>
+                                              <NeoInput 
+                                                value={formData.education[level]?.grade || ''} 
+                                                onChange={(e) => handleEducationChange(level, 'grade', e.target.value)}
                                                 disabled={!isEditing} 
                                               />
                                           </div>
                                           <div>
                                               <label className="block font-bold text-xs mb-1 dark:text-white">Year</label>
                                               <NeoInput 
+                                                type="number"
                                                 value={formData.education[level]?.passingYear || formData.education[level]?.year || ''} 
                                                 onChange={(e) => handleEducationChange(level, level === 'phd' ? 'year' : 'passingYear', e.target.value)}
                                                 disabled={!isEditing} 
                                               />
                                           </div>
+                                          <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                              <label className="block font-bold text-xs mb-1 dark:text-white">City</label>
+                                              <NeoInput 
+                                                value={formData.education[level]?.city || ''} 
+                                                onChange={(e) => handleEducationChange(level, 'city', e.target.value)}
+                                                disabled={!isEditing} 
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block font-bold text-xs mb-1 dark:text-white">State</label>
+                                              <NeoInput 
+                                                value={formData.education[level]?.state || ''} 
+                                                onChange={(e) => handleEducationChange(level, 'state', e.target.value)}
+                                                disabled={!isEditing} 
+                                              />
+                                            </div>
+                                          </div>
                                       </div>
                                   </details>
                               ))}
                           </div>
+
+                          {/* Languages & Certifications added for Recruiter */}
+                          <div className="pt-6 border-t mt-6">
+                               <div className="flex justify-between items-center mb-4">
+                                   <label className="font-black text-sm uppercase dark:text-white">Languages Known</label>
+                                   {isEditing && (
+                                       <NeoButton size="sm" onClick={addLanguage} variant="secondary" className="h-8 text-xs">
+                                           <Plus className="w-3 h-3 mr-1"/> Add Language
+                                       </NeoButton>
+                                   )}
+                               </div>
+                               
+                               {formData.languages.length === 0 ? (
+                                   <div className="text-center p-4 border-2 border-dashed border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 rounded-sm">
+                                       <span className="text-sm text-gray-400 dark:text-gray-500 font-bold uppercase">No languages added</span>
+                                   </div>
+                               ) : (
+                                   <div className="grid grid-cols-1 gap-3">
+                                       {formData.languages.map((l, i) => (
+                                         <div key={i} className="flex gap-2 items-center bg-gray-50 dark:bg-zinc-900 border-2 border-black dark:border-white p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">
+                                             <NeoInput 
+                                                placeholder="Language (e.g. English)" 
+                                                value={l.language} 
+                                                onChange={(e) => handleLanguageChange(i, 'language', e.target.value)} 
+                                                disabled={!isEditing} 
+                                                className="flex-grow border-0 focus:ring-0 bg-transparent"
+                                             />
+                                             <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
+                                             <select 
+                                                className="bg-transparent font-bold text-sm focus:outline-none dark:text-white cursor-pointer" 
+                                                value={l.proficiency} 
+                                                onChange={(e) => handleLanguageChange(i, 'proficiency', e.target.value)} 
+                                                disabled={!isEditing}
+                                             >
+                                                <option value="Beginner">Beginner</option>
+                                                <option value="Intermediate">Intermediate</option>
+                                                <option value="Advanced">Advanced</option>
+                                                <option value="Native">Native</option>
+                                             </select>
+                                             {isEditing && (
+                                                 <button onClick={() => removeLanguage(i)} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-colors">
+                                                     <Trash2 className="w-4 h-4"/>
+                                                 </button>
+                                             )}
+                                         </div>
+                                       ))}
+                                   </div>
+                               )}
+                           </div>
+                           
+                           <div className="pt-6 border-t mt-6">
+                               <div className="flex justify-between items-center mb-4">
+                                   <label className="font-black text-sm uppercase dark:text-white">Certifications</label>
+                                   {isEditing && (
+                                       <NeoButton size="sm" onClick={addCertification} variant="secondary" className="h-8 text-xs">
+                                           <Plus className="w-3 h-3 mr-1"/> Add Certificate
+                                       </NeoButton>
+                                   )}
+                               </div>
+
+                               {formData.certifications.length === 0 ? (
+                                   <div className="text-center p-4 border-2 border-dashed border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50 rounded-sm">
+                                       <span className="text-sm text-gray-400 dark:text-gray-500 font-bold uppercase">No certifications added</span>
+                                   </div>
+                               ) : (
+                                   <div className="space-y-4">
+                                       {formData.certifications.map((c, i) => (
+                                         <div key={i} className="border-2 border-black dark:border-white p-4 bg-white dark:bg-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] relative">
+                                             {isEditing && (
+                                                 <button 
+                                                    onClick={() => removeCertification(i)} 
+                                                    className="absolute top-2 right-2 text-red-500 hover:text-red-600 p-1"
+                                                 >
+                                                     <Trash2 className="w-4 h-4"/>
+                                                 </button>
+                                             )}
+                                             <span className="absolute -top-3 left-3 bg-neo-yellow px-2 py-0.5 text-[10px] font-black uppercase border-2 border-black">Certificate #{i+1}</span>
+                                             
+                                             <div className="grid md:grid-cols-2 gap-3 mt-1">
+                                                  <div>
+                                                      <label className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Name</label>
+                                                      <NeoInput placeholder="ex. HR Management" value={c.name} onChange={(e) => handleCertificationChange(i, 'name', e.target.value)} disabled={!isEditing} />
+                                                  </div>
+                                                  <div>
+                                                      <label className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Issuing Org</label>
+                                                      <NeoInput placeholder="ex. SHRM" value={c.issuingOrganization} onChange={(e) => handleCertificationChange(i, 'issuingOrganization', e.target.value)} disabled={!isEditing} />
+                                                  </div>
+                                                   <div>
+                                                       <NeoDatePicker 
+                                                          label="Issue Date" 
+                                                          value={c.issueDate} 
+                                                          onChange={(e) => handleCertificationChange(i, 'issueDate', e.target.value)} 
+                                                          disabled={!isEditing} 
+                                                       />
+                                                   </div>
+                                                  <div>
+                                                      <label className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Credential URL</label>
+                                                      <NeoInput placeholder="https://..." value={c.credentialURL} onChange={(e) => handleCertificationChange(i, 'credentialURL', e.target.value)} disabled={!isEditing} />
+                                                   </div>
+                                                   <div>
+                                                       <NeoDatePicker 
+                                                          label="Expiry Date (Optional)" 
+                                                          value={c.expiryDate} 
+                                                          onChange={(e) => handleCertificationChange(i, 'expiryDate', e.target.value)} 
+                                                          disabled={!isEditing} 
+                                                       />
+                                                   </div>
+                                             </div>
+                                         </div>
+                                       ))}
+                                   </div>
+                               )}
+                           </div>
                       </div>
+
                   )}
 
                   {activeStep === 3 && (
                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                            <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-zinc-800/50 border-2 border-neo-black dark:border-white shadow-neo-sm mb-6">
-                                {isEditing ? (
-                                  <NeoCheckbox 
-                                    id="fresher-recruiter" 
-                                    checked={formData.isFresher} 
-                                    onCheckedChange={(checked) => setFormData(p => ({...p, isFresher: checked, experienceYears: checked ? 0 : p.experienceYears}))}
-                                    label={formData.isFresher ? 'I AM A FRESHER' : 'I HAVE WORK EXPERIENCE'}
-                                  />
-                                ) : (
-                                  <>
-                                    <div className={`w-3 h-3 rounded-full ${formData.isFresher ? 'bg-neo-green' : 'bg-neo-blue'}`}></div>
-                                    <span className={`font-bold uppercase text-sm tracking-tight ${formData.isFresher ? 'text-neo-green' : 'text-neo-blue dark:text-blue-400'}`}>
-                                       {formData.isFresher ? 'I AM A FRESHER' : 'I HAVE WORK EXPERIENCE'}
-                                    </span>
-                                  </>
-                                )}
+                                 {isEditing ? (
+                                   <div className="flex flex-col sm:flex-row gap-6">
+                                      <NeoRadio 
+                                        checked={formData.isFresher} 
+                                        onChange={() => setFormData(p => ({...p, isFresher: true, experienceYears: 0}))}
+                                        label="I am a Fresher"
+                                      />
+                                      <NeoRadio 
+                                        checked={!formData.isFresher} 
+                                        onChange={() => setFormData(p => ({
+                                          ...p, 
+                                          isFresher: false,
+                                          experienceYears: p.experienceYears === 0 ? (user?.experienceYears || 0) : p.experienceYears
+                                        }))}
+                                        label="I have Work Experience"
+                                      />
+                                   </div>
+                                 ) : (
+                                   <div className="flex items-center gap-2">
+                                     <div className={`w-3 h-3 rounded-full border-2 border-black ${formData.isFresher ? 'bg-neo-green' : 'bg-neo-blue'}`}></div>
+                                     <span className={`font-bold uppercase text-sm tracking-tight ${formData.isFresher ? 'text-neo-green' : 'text-neo-blue dark:text-blue-400'}`}>
+                                        {formData.isFresher ? 'I AM A FRESHER' : 'I HAVE WORK EXPERIENCE'}
+                                     </span>
+                                   </div>
+                                 )}
                            </div>
 
                            {!formData.isFresher && (
@@ -814,6 +1089,7 @@ export default function RecruiterProfilePage() {
           </NeoCard>
         </div>
       </div>
+     </div>
       )}
     </AuthGuard>
   );

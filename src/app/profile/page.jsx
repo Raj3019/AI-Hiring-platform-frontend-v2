@@ -2,31 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import { useAuthStore } from '@/lib/store';
-import { getMissingProfileFields } from '@/lib/utils';
+import { getMissingProfileFields, formatDate } from '@/lib/utils';
 import { employeeAPI } from '@/lib/api';
-import { NeoCard, NeoButton, NeoInput, NeoBadge, NeoDatePicker, NeoCheckbox } from '@/components/ui/neo';
+import { NeoCard, NeoButton, NeoInput, NeoBadge, NeoDatePicker, NeoCheckbox, NeoRadio } from '@/components/ui/neo';
 import { User, Briefcase, MapPin, GraduationCap, Globe, Edit2, Save, X, Plus, Trash2 } from 'lucide-react';
 
-const formatFieldName = (field) => {
-    const map = {
-        'fullName': 'Full Name',
-        'phone': 'Phone Number', 
-        'dateOfBirth': 'Date of Birth',
-        'gender': 'Gender',
-        'currentCity': 'City',
-        'state': 'State',
-        'country': 'Country',
-        'zipCode': 'Zip Code',
-        'resumeFileURL': 'Resume',
-        'skills': 'Skills',
-        'languages': 'Languages',
-        'education.tenth': '10th Education Details',
-        'education.graduation': 'Graduation Details',
-        'jobPreferences.jobType': 'Preferred Job Type',
-        'jobPreferences.workMode': 'Preferred Work Mode'
-    };
-    return map[field] || field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-};
+import ProfileCompletionBanner from '@/components/shared/ProfileCompletionBanner';
 
 // Helper component for displaying field in view mode vs edit mode
 const DisplayField = ({ label, value, name, type = "text", onChange, isTextarea = false, placeholder = "", isEditing, ...props }) => {
@@ -57,7 +38,9 @@ const DisplayField = ({ label, value, name, type = "text", onChange, isTextarea 
   return (
     <div>
       <label className="block font-bold text-xs mb-1 text-gray-400 dark:text-gray-500 uppercase">{label}</label>
-      <span className="font-bold dark:text-white text-lg block break-words">{value || 'Not specified'}</span>
+      <span className="font-bold dark:text-white text-lg block break-words">
+        {type === 'date' ? formatDate(value) : (value || 'Not specified')}
+      </span>
     </div>
   );
 };
@@ -75,6 +58,7 @@ export default function ProfilePage() {
      currentJobTitle: '',
      currentCompany: '',
      about: '',
+     headline: '',
      phone: '',
      dateOfBirth: '',
      gender: '',
@@ -135,6 +119,7 @@ export default function ProfilePage() {
       currentJobTitle: apiData.currentJobTitle || apiData.title || apiData.role || '',
       currentCompany: apiData.currentCompany || '',
       about: apiData.about || apiData.bio || '',
+      headline: apiData.headline || '',
       phone: apiData.phone || '',
       dateOfBirth: apiData.dateOfBirth || apiData.dob ? new Date(apiData.dateOfBirth || apiData.dob).toISOString().split('T')[0] : '',
       gender: apiData.gender || '',
@@ -326,6 +311,7 @@ export default function ProfilePage() {
         const profilePayload = {
             fullName: formData.fullName,
             about: formData.about,
+            headline: formData.headline,
             phone: formData.phone,
             dateOfBirth: formData.dateOfBirth,
             gender: formData.gender,
@@ -409,31 +395,128 @@ export default function ProfilePage() {
   };
 
   const handleProfilePicUpload = async (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const formData = new FormData();
-      formData.append('profilePicture', file);
-      setIsUploading(true);
-      try {
-        const res = await employeeAPI.updateProfilePicture(formData);
-        if(res.profilePicture) updateProfile({ profilePicture: res.profilePicture });
-      } catch (error) {} 
-      finally { setIsUploading(false); }
+    if (!e.target.files || !e.target.files[0]) {
+      setSuccessMessage('Please select an image to upload.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      return;
+    }
+
+    const file = e.target.files[0];
+    
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setSuccessMessage('Invalid file type. Please upload a JPEG, PNG, or WebP image.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      e.target.value = '';
+      return;
+    }
+
+    // Validate file size (max 5MB for images)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setSuccessMessage('Image size too large. Please upload an image smaller than 5MB.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      e.target.value = '';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('profilePicture', file);
+    setIsUploading(true);
+    
+    try {
+      console.log('Uploading profile picture:', file.name, file.size);
+      const res = await employeeAPI.updateProfilePicture(formData);
+      console.log('Profile picture upload response:', res);
+      
+      if(res.profilePicture) {
+        updateProfile({ profilePicture: res.profilePicture });
+        setSuccessMessage(res?.message || 'Profile picture uploaded successfully!');
+        // Refresh profile to get latest data
+        if (user?.role) await fetchProfile(user.role);
+      } else {
+        console.warn('Profile picture URL not found in response:', res);
+        setSuccessMessage('Profile picture uploaded but URL not received. Please refresh the page.');
+      }
+    } catch (error) {
+      console.error('Profile picture upload error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to upload profile picture. Please try again.';
+      setSuccessMessage(errorMessage);
+    } 
+    finally { 
+      setIsUploading(false);
+      setTimeout(() => setSuccessMessage(''), 5000);
+      // Reset the input to allow re-uploading the same file
+      e.target.value = '';
     }
   };
 
   const handleResumeUpload = async (e) => {
-    if (e.target.files && e.target.files[0]) {
-       const file = e.target.files[0];
-       const fileData = new FormData();
-       fileData.append('resume', file);
-       setIsUploading(true);
-       try {
-           const res = await employeeAPI.updateResume(fileData);
-           const resumeUrl = res.resume || res.resumeUrl || res.url || res.data?.resume || res.resumeFileURL;
-           if(resumeUrl) setFormData(prev => ({ ...prev, resumeFileURL: resumeUrl }));
-       } catch (error) {} 
-       finally { setIsUploading(false); }
+    if (!e.target.files || !e.target.files[0]) {
+      setSuccessMessage('Please select a file to upload.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      return;
+    }
+
+    const file = e.target.files[0];
+    
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const allowedExtensions = ['.pdf', '.doc', '.docx'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    const isValidType = allowedTypes.includes(file.type) || allowedExtensions.includes(fileExtension);
+    
+    if (!isValidType) {
+      setSuccessMessage('Invalid file type. Please upload a PDF, DOC, or DOCX file.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      // Reset the input
+      e.target.value = '';
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setSuccessMessage('File size too large. Please upload a file smaller than 10MB.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      e.target.value = '';
+      return;
+    }
+
+    const fileData = new FormData();
+    fileData.append('resume', file);
+    setIsUploading(true);
+    
+    try {
+        console.log('Uploading resume:', file.name, file.size);
+        const res = await employeeAPI.updateResume(fileData);
+        console.log('Resume upload response:', res);
+        
+        // Backend returns { message: "...", resumeLink: "..." }
+        const resumeUrl = res.resumeLink || res.resume || res.resumeUrl || res.url || res.data?.resume || res.resumeFileURL;
+        
+        if(resumeUrl) {
+          setFormData(prev => ({ ...prev, resumeFileURL: resumeUrl }));
+          setSuccessMessage(res?.message || 'Resume uploaded successfully!');
+          // Update the profile in the store
+          updateProfile({ resumeFileURL: resumeUrl });
+          // Refresh profile to get latest data
+          if (user?.role) await fetchProfile(user.role);
+        } else {
+          console.warn('Resume URL not found in response:', res);
+          setSuccessMessage('Resume uploaded but URL not received. Please refresh the page.');
+        }
+    } catch (error) {
+      console.error('Resume upload error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to upload resume. Please try again.';
+      setSuccessMessage(errorMessage);
+    } 
+    finally { 
+      setIsUploading(false);
+      setTimeout(() => setSuccessMessage(''), 5000);
+      // Reset the input to allow re-uploading the same file
+      e.target.value = '';
     }
   };
   
@@ -459,24 +542,7 @@ export default function ProfilePage() {
       ) : (
       <div className="min-h-screen bg-neo-bg dark:bg-zinc-950">
         {/* Missing Fields Top Bar */}
-        {user && getMissingProfileFields(user).length > 0 && (
-            <div className="bg-neo-red text-white border-b-4 border-neo-black p-3 shadow-md">
-                <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                        <span className="text-2xl animate-pulse">⚠️</span>
-                        <span className="font-black uppercase tracking-wider text-sm md:text-base">Profile Incomplete:</span>
-                        <span className="hidden md:inline font-bold text-sm opacity-90">Required for job applications</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                         {getMissingProfileFields(user).map(f => (
-                            <span key={f} className="bg-white text-neo-red px-2 py-0.5 text-[10px] font-black uppercase border-2 border-neo-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                                {formatFieldName(f)}
-                            </span>
-                         ))}
-                    </div>
-                </div>
-            </div>
-        )}
+        <ProfileCompletionBanner />
         <div className="container mx-auto px-4 py-12 flex flex-col md:flex-row gap-8">
         {successMessage && <div className="fixed top-24 right-4 z-50 bg-neo-green border-2 border-black p-4 text-white font-bold shadow-neo">{successMessage}</div>}
         
@@ -484,20 +550,35 @@ export default function ProfilePage() {
         <div className="md:w-1/3">
           <NeoCard className="sticky top-24 text-center border-4">
             <div className="w-32 h-32 mx-auto bg-gray-200 dark:bg-zinc-800 rounded-full mb-4 border-4 border-neo-black dark:border-white overflow-hidden relative group">
-               <img src={user?.profilePicture || user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Recruiter"} alt="Profile" className="w-full h-full object-cover" />
-               {isEditing && <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer" onClick={() => document.getElementById('pic').click()}><span className="text-white text-xs font-bold">CHANGE</span></div>}
-               <input type="file" id="pic" className="hidden" accept="image/*" onChange={handleProfilePicUpload} />
+               {isUploading ? (
+                 <div className="w-full h-full flex items-center justify-center bg-gray-300 dark:bg-zinc-700">
+                   <div className="flex flex-col items-center gap-2">
+                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neo-black dark:border-white"></div>
+                     <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Uploading...</span>
+                   </div>
+                 </div>
+               ) : (
+                 <>
+                   <img src={user?.profilePicture || user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Recruiter"} alt="Profile" className="w-full h-full object-cover" />
+                   {isEditing && !isUploading && (
+                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity" onClick={() => document.getElementById('pic').click()}>
+                       <span className="text-white text-xs font-bold">CHANGE</span>
+                     </div>
+                   )}
+                 </>
+               )}
+               <input type="file" id="pic" className="hidden" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleProfilePicUpload} disabled={!isEditing || isUploading} />
             </div>
             <h2 className="text-2xl font-black uppercase dark:text-white">{formData.fullName}</h2>
-            <p className="font-mono text-gray-500 mb-2">{formData.currentJobTitle || 'Employee'}</p>
+            <p className="font-mono text-gray-500 mb-2">{formData.headline}</p>
             <div className="flex justify-center items-center gap-2 mb-6 text-sm font-bold opacity-60"><MapPin className="w-4 h-4"/> {formData.currentCity}, {formData.country}</div>
-            <NeoBadge variant="blue">PRO MEMBER</NeoBadge>
+            {/* <NeoBadge variant="blue">PRO MEMBER</NeoBadge> */}
 
             {/* Restored Skills Section */}
             <div className="mt-8 text-left">
               <h4 className="font-bold text-xs uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-widest">Skills</h4>
               <div className="flex flex-wrap gap-2">
-                  {formData.skills?.slice(0, 4).map((skill, i) => (
+                  {formData.skills?.map((skill, i) => (
                       <span key={i} className="text-xs border border-neo-black dark:border-white px-2 py-1 bg-white dark:bg-zinc-800 dark:text-white rounded-full shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] dark:shadow-none">{skill}</span>
                   )) || <span className="text-xs text-gray-400">Add skills to see them here</span>}
               </div>
@@ -549,6 +630,7 @@ export default function ProfilePage() {
                   {activeStep === 1 && (
                       <div className="space-y-6">
                           <DisplayField isEditing={isEditing} label="Full Name" value={formData.fullName} name="fullName" onChange={handleInputChange} />
+                          <DisplayField isEditing={isEditing} label="Headline" value={formData.headline} name="headline" onChange={handleInputChange} />
                           <DisplayField isEditing={isEditing} label="About" value={formData.about} name="about" onChange={handleInputChange} isTextarea placeholder="Tell us about yourself..." />
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <DisplayField isEditing={isEditing} label="Phone Number" value={formData.phone} name="phone" onChange={handleInputChange} />
@@ -561,8 +643,7 @@ export default function ProfilePage() {
                                    <select name="gender" value={formData.gender} onChange={handleInputChange} className="w-full bg-white dark:bg-zinc-900 border-2 border-black p-3 font-mono text-sm dark:text-white"><option value="">Select...</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select>
                                  ) : <span className="font-bold text-lg dark:text-white">{formData.gender || 'Not specified'}</span>}
                                </div>
-                               <DisplayField isEditing={isEditing} label="Current Company" value={formData.currentCompany} name="currentCompany" onChange={handleInputChange} />
-                          </div>
+                               </div>
                           <div className="pt-4 border-t border-gray-100 dark:border-zinc-700">
                                <label className="block font-bold text-sm mb-3 uppercase text-gray-400">Address Details</label>
                                <div className="space-y-4">
@@ -596,8 +677,23 @@ export default function ProfilePage() {
                                 <summary className="flex cursor-pointer items-center justify-between p-4 font-bold select-none dark:text-white">10th Standard<span className="text-xl group-open:rotate-180 transition-transform">▼</span></summary>
                                 <div className="p-4 border-t-2 border-black grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="md:col-span-2"><label className="block font-bold text-xs mb-1">School Name</label><NeoInput value={formData.education.tenth?.schoolName} onChange={(e) => handleEducationChange('tenth', 'schoolName', e.target.value)} disabled={!isEditing} /></div>
-                                    <div><label className="block font-bold text-xs mb-1">Board</label><NeoInput value={formData.education.tenth?.board} onChange={(e) => handleEducationChange('tenth', 'board', e.target.value)} disabled={!isEditing} /></div>
+                                    <div>
+                                        <label className="block font-bold text-xs mb-1">Board</label>
+                                        <select 
+                                            value={formData.education.tenth?.board} 
+                                            onChange={(e) => handleEducationChange('tenth', 'board', e.target.value)} 
+                                            disabled={!isEditing}
+                                            className="w-full bg-white dark:bg-zinc-900 border-2 border-black p-2 font-mono text-sm dark:text-white"
+                                        >
+                                            <option value="">Select Board</option>
+                                            <option value="CBSE">CBSE</option>
+                                            <option value="ICSE">ICSE</option>
+                                            <option value="State Board">State Board</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
                                     <div><label className="block font-bold text-xs mb-1">Percentage%</label><NeoInput type="number" value={formData.education.tenth?.percentage} onChange={(e) => handleEducationChange('tenth', 'percentage', e.target.value)} disabled={!isEditing} /></div>
+                                    <div><label className="block font-bold text-xs mb-1">Grade</label><NeoInput value={formData.education.tenth?.grade} onChange={(e) => handleEducationChange('tenth', 'grade', e.target.value)} disabled={!isEditing} placeholder="e.g. A+" /></div>
                                     <div><label className="block font-bold text-xs mb-1">Year</label><NeoInput type="number" value={formData.education.tenth?.year} onChange={(e) => handleEducationChange('tenth', 'year', e.target.value)} disabled={!isEditing} /></div>
                                     <div><label className="block font-bold text-xs mb-1">City</label><NeoInput value={formData.education.tenth?.city} onChange={(e) => handleEducationChange('tenth', 'city', e.target.value)} disabled={!isEditing} /></div>
                                     <div><label className="block font-bold text-xs mb-1">State</label><NeoInput value={formData.education.tenth?.state} onChange={(e) => handleEducationChange('tenth', 'state', e.target.value)} disabled={!isEditing} /></div>
@@ -608,9 +704,38 @@ export default function ProfilePage() {
                                 <summary className="flex cursor-pointer items-center justify-between p-4 font-bold select-none dark:text-white">12th / Junior College<span className="text-xl group-open:rotate-180 transition-transform">▼</span></summary>
                                 <div className="p-4 border-t-2 border-black grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="md:col-span-2"><label className="block font-bold text-xs mb-1">College Name</label><NeoInput value={formData.education.juniorCollege?.collegeName} onChange={(e) => handleEducationChange('juniorCollege', 'collegeName', e.target.value)} disabled={!isEditing} /></div>
-                                    <div><label className="block font-bold text-xs mb-1">Board</label><NeoInput value={formData.education.juniorCollege?.board} onChange={(e) => handleEducationChange('juniorCollege', 'board', e.target.value)} disabled={!isEditing} /></div>
-                                    <div><label className="block font-bold text-xs mb-1">Stream</label><NeoInput value={formData.education.juniorCollege?.stream} onChange={(e) => handleEducationChange('juniorCollege', 'stream', e.target.value)} disabled={!isEditing} /></div>
+                                    <div>
+                                        <label className="block font-bold text-xs mb-1">Board</label>
+                                        <select 
+                                            value={formData.education.juniorCollege?.board} 
+                                            onChange={(e) => handleEducationChange('juniorCollege', 'board', e.target.value)} 
+                                            disabled={!isEditing}
+                                            className="w-full bg-white dark:bg-zinc-900 border-2 border-black p-2 font-mono text-sm dark:text-white"
+                                        >
+                                            <option value="">Select Board</option>
+                                            <option value="CBSE">CBSE</option>
+                                            <option value="ICSE">ICSE</option>
+                                            <option value="State Board">State Board</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold text-xs mb-1">Stream</label>
+                                        <select 
+                                            value={formData.education.juniorCollege?.stream} 
+                                            onChange={(e) => handleEducationChange('juniorCollege', 'stream', e.target.value)} 
+                                            disabled={!isEditing}
+                                            className="w-full bg-white dark:bg-zinc-900 border-2 border-black p-2 font-mono text-sm dark:text-white"
+                                        >
+                                            <option value="">Select Stream</option>
+                                            <option value="Science">Science</option>
+                                            <option value="Commerce">Commerce</option>
+                                            <option value="Arts">Arts</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
                                     <div><label className="block font-bold text-xs mb-1">Percentage%</label><NeoInput type="number" value={formData.education.juniorCollege?.percentage} onChange={(e) => handleEducationChange('juniorCollege', 'percentage', e.target.value)} disabled={!isEditing} /></div>
+                                    <div><label className="block font-bold text-xs mb-1">Grade</label><NeoInput value={formData.education.juniorCollege?.grade} onChange={(e) => handleEducationChange('juniorCollege', 'grade', e.target.value)} disabled={!isEditing} placeholder="e.g. A+" /></div>
                                     <div><label className="block font-bold text-xs mb-1">Year</label><NeoInput type="number" value={formData.education.juniorCollege?.year} onChange={(e) => handleEducationChange('juniorCollege', 'year', e.target.value)} disabled={!isEditing} /></div>
                                     <div><label className="block font-bold text-xs mb-1">City</label><NeoInput value={formData.education.juniorCollege?.city} onChange={(e) => handleEducationChange('juniorCollege', 'city', e.target.value)} disabled={!isEditing} /></div>
                                     <div><label className="block font-bold text-xs mb-1">State</label><NeoInput value={formData.education.juniorCollege?.state} onChange={(e) => handleEducationChange('juniorCollege', 'state', e.target.value)} disabled={!isEditing} /></div>
@@ -623,9 +748,13 @@ export default function ProfilePage() {
                                     <div className="md:col-span-2"><label className="block font-bold text-xs mb-1">College Name</label><NeoInput value={formData.education.graduation?.collegeName} onChange={(e) => handleEducationChange('graduation', 'collegeName', e.target.value)} disabled={!isEditing} /></div>
                                     <div><label className="block font-bold text-xs mb-1">University</label><NeoInput value={formData.education.graduation?.university} onChange={(e) => handleEducationChange('graduation', 'university', e.target.value)} disabled={!isEditing} /></div>
                                     <div><label className="block font-bold text-xs mb-1">Degree</label><NeoInput value={formData.education.graduation?.degree} onChange={(e) => handleEducationChange('graduation', 'degree', e.target.value)} disabled={!isEditing} /></div>
-                                    <div><label className="block font-bold text-xs mb-1">Percentage/CGPA</label><NeoInput type="number" value={formData.education.graduation?.percentage} onChange={(e) => handleEducationChange('graduation', 'percentage', e.target.value)} disabled={!isEditing} /></div>
+                                    <div><label className="block font-bold text-xs mb-1">Specialization</label><NeoInput value={formData.education.graduation?.specialization} onChange={(e) => handleEducationChange('graduation', 'specialization', e.target.value)} disabled={!isEditing} placeholder="e.g. Computer Science" /></div>
+                                    <div><label className="block font-bold text-xs mb-1">Percentage%</label><NeoInput type="number" value={formData.education.graduation?.percentage} onChange={(e) => handleEducationChange('graduation', 'percentage', e.target.value)} disabled={!isEditing} /></div>
+                                    <div><label className="block font-bold text-xs mb-1">CGPA</label><NeoInput type="number" value={formData.education.graduation?.cgpa} onChange={(e) => handleEducationChange('graduation', 'cgpa', e.target.value)} disabled={!isEditing} /></div>
                                     <div><label className="block font-bold text-xs mb-1">Year</label><NeoInput type="number" value={formData.education.graduation?.year} onChange={(e) => handleEducationChange('graduation', 'year', e.target.value)} disabled={!isEditing} /></div>
+                                    <div><label className="block font-bold text-xs mb-1">Grade</label><NeoInput value={formData.education.graduation?.grade} onChange={(e) => handleEducationChange('graduation', 'grade', e.target.value)} disabled={!isEditing} placeholder="e.g. A" /></div>
                                     <div><label className="block font-bold text-xs mb-1">City</label><NeoInput value={formData.education.graduation?.city} onChange={(e) => handleEducationChange('graduation', 'city', e.target.value)} disabled={!isEditing} /></div>
+                                    <div><label className="block font-bold text-xs mb-1">State</label><NeoInput value={formData.education.graduation?.state} onChange={(e) => handleEducationChange('graduation', 'state', e.target.value)} disabled={!isEditing} /></div>
                                 </div>
                            </details>
 
@@ -635,9 +764,13 @@ export default function ProfilePage() {
                                     <div className="md:col-span-2"><label className="block font-bold text-xs mb-1">College Name</label><NeoInput value={formData.education.postGraduation?.collegeName} onChange={(e) => handleEducationChange('postGraduation', 'collegeName', e.target.value)} disabled={!isEditing} /></div>
                                     <div><label className="block font-bold text-xs mb-1">University</label><NeoInput value={formData.education.postGraduation?.university} onChange={(e) => handleEducationChange('postGraduation', 'university', e.target.value)} disabled={!isEditing} /></div>
                                     <div><label className="block font-bold text-xs mb-1">Degree</label><NeoInput value={formData.education.postGraduation?.degree} onChange={(e) => handleEducationChange('postGraduation', 'degree', e.target.value)} disabled={!isEditing} /></div>
-                                    <div><label className="block font-bold text-xs mb-1">Percentage/CGPA</label><NeoInput type="number" value={formData.education.postGraduation?.percentage} onChange={(e) => handleEducationChange('postGraduation', 'percentage', e.target.value)} disabled={!isEditing} /></div>
+                                    <div><label className="block font-bold text-xs mb-1">Specialization</label><NeoInput value={formData.education.postGraduation?.specialization} onChange={(e) => handleEducationChange('postGraduation', 'specialization', e.target.value)} disabled={!isEditing} placeholder="e.g. Data Science" /></div>
+                                    <div><label className="block font-bold text-xs mb-1">Percentage%</label><NeoInput type="number" value={formData.education.postGraduation?.percentage} onChange={(e) => handleEducationChange('postGraduation', 'percentage', e.target.value)} disabled={!isEditing} /></div>
+                                    <div><label className="block font-bold text-xs mb-1">CGPA</label><NeoInput type="number" value={formData.education.postGraduation?.cgpa} onChange={(e) => handleEducationChange('postGraduation', 'cgpa', e.target.value)} disabled={!isEditing} /></div>
                                     <div><label className="block font-bold text-xs mb-1">Year</label><NeoInput type="number" value={formData.education.postGraduation?.year} onChange={(e) => handleEducationChange('postGraduation', 'year', e.target.value)} disabled={!isEditing} /></div>
+                                    <div><label className="block font-bold text-xs mb-1">Grade</label><NeoInput value={formData.education.postGraduation?.grade} onChange={(e) => handleEducationChange('postGraduation', 'grade', e.target.value)} disabled={!isEditing} placeholder="e.g. A" /></div>
                                     <div><label className="block font-bold text-xs mb-1">City</label><NeoInput value={formData.education.postGraduation?.city} onChange={(e) => handleEducationChange('postGraduation', 'city', e.target.value)} disabled={!isEditing} /></div>
+                                    <div><label className="block font-bold text-xs mb-1">State</label><NeoInput value={formData.education.postGraduation?.state} onChange={(e) => handleEducationChange('postGraduation', 'state', e.target.value)} disabled={!isEditing} /></div>
                                 </div>
                            </details>
 
@@ -738,14 +871,28 @@ export default function ProfilePage() {
                                                       <label className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Issuing Org</label>
                                                       <NeoInput placeholder="ex. Amazon Web Services" value={c.issuingOrganization} onChange={(e) => handleCertificationChange(i, 'issuingOrganization', e.target.value)} disabled={!isEditing} />
                                                   </div>
-                                                  <div>
-                                                      <label className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Issue Date</label>
-                                                      <NeoInput type="date" value={c.issueDate ? new Date(c.issueDate).toISOString().split('T')[0] : ''} onChange={(e) => handleCertificationChange(i, 'issueDate', e.target.value)} disabled={!isEditing} />
-                                                  </div>
+                                                   <div>
+                                                       <NeoDatePicker 
+                                                          label="Issue Date" 
+                                                          value={c.issueDate} 
+                                                          onChange={(e) => handleCertificationChange(i, 'issueDate', e.target.value)} 
+                                                          disabled={!isEditing} 
+                                                       />
+                                                   </div>
                                                   <div>
                                                       <label className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Credential URL</label>
                                                       <NeoInput placeholder="https://..." value={c.credentialURL} onChange={(e) => handleCertificationChange(i, 'credentialURL', e.target.value)} disabled={!isEditing} />
-                                                  </div>
+                                                   </div>
+                                                   <div>
+                                                       <NeoDatePicker 
+                                                          label="Expiry Date (Optional)" 
+                                                          value={c.expiryDate} 
+                                                          onChange={(e) => handleCertificationChange(i, 'expiryDate', e.target.value)} 
+                                                          disabled={!isEditing} 
+                                                       />
+                                                   </div>
+
+                                                  
                                              </div>
                                          </div>
                                        ))}
@@ -758,19 +905,29 @@ export default function ProfilePage() {
                   {activeStep === 3 && (
                        <div className="space-y-6">
                            <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-zinc-800/50 border-2 border-black shadow-neo-sm">
-                                {isEditing ? (
-                                  <NeoCheckbox 
-                                    id="fresher" 
-                                    checked={formData.isFresher} 
-                                    onCheckedChange={(checked) => setFormData(p => ({...p, isFresher: checked, experienceYears: checked ? 0 : p.experienceYears}))}
-                                    label={formData.isFresher ? 'I AM A FRESHER' : 'I HAVE WORK EXPERIENCE'}
-                                  />
-                                ) : (
-                                  <>
-                                    <div className={`w-3 h-3 rounded-full ${formData.isFresher ? 'bg-neo-green' : 'bg-neo-blue'}`}></div>
-                                    <span className="font-bold uppercase text-sm">{formData.isFresher ? 'I AM A FRESHER' : 'I HAVE WORK EXPERIENCE'}</span>
-                                  </>
-                                )}
+                                 {isEditing ? (
+                                   <div className="flex flex-col sm:flex-row gap-6">
+                                      <NeoRadio 
+                                        checked={formData.isFresher} 
+                                        onChange={() => setFormData(p => ({...p, isFresher: true, experienceYears: 0}))}
+                                        label="I am a Fresher"
+                                      />
+                                      <NeoRadio 
+                                        checked={!formData.isFresher} 
+                                        onChange={() => setFormData(p => ({
+                                          ...p, 
+                                          isFresher: false,
+                                          experienceYears: p.experienceYears === 0 ? (user?.experienceYears || 0) : p.experienceYears
+                                        }))}
+                                        label="I have Work Experience"
+                                      />
+                                   </div>
+                                 ) : (
+                                   <div className="flex items-center gap-2">
+                                     <div className={`w-3 h-3 rounded-full border-2 border-black ${formData.isFresher ? 'bg-neo-green' : 'bg-neo-blue'}`}></div>
+                                     <span className="font-bold uppercase text-sm">{formData.isFresher ? 'I AM A FRESHER' : 'I HAVE WORK EXPERIENCE'}</span>
+                                   </div>
+                                 )}
                            </div>
                             {!formData.isFresher && (
                                <div className="space-y-4">
@@ -784,10 +941,22 @@ export default function ProfilePage() {
                                            <div><label className="block font-bold text-xs mb-1 uppercase">Company</label><NeoInput value={exp.company} onChange={(e) => handleExperienceChange(idx, 'company', e.target.value)} disabled={!isEditing} /></div>
                                        </div>
                                        <div className="mb-4"><label className="block font-bold text-xs mb-1 uppercase">Location</label><NeoInput value={exp.location} onChange={(e) => handleExperienceChange(idx, 'location', e.target.value)} disabled={!isEditing} /></div>
-                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                           <div><label className="block font-bold text-xs mb-1 uppercase">Start Date</label><NeoInput type="date" value={exp.startDate ? new Date(exp.startDate).toISOString().split('T')[0] : ''} onChange={(e) => handleExperienceChange(idx, 'startDate', e.target.value)} disabled={!isEditing} /></div>
-                                           {!exp.currentlyWorking && <div><label className="block font-bold text-xs mb-1 uppercase">End Date</label><NeoInput type="date" value={exp.endDate ? new Date(exp.endDate).toISOString().split('T')[0] : ''} onChange={(e) => handleExperienceChange(idx, 'endDate', e.target.value)} disabled={!isEditing} /></div>}
-                                       </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                            <NeoDatePicker 
+                                                label="Start Date" 
+                                                value={exp.startDate} 
+                                                onChange={(e) => handleExperienceChange(idx, 'startDate', e.target.value)} 
+                                                disabled={!isEditing} 
+                                            />
+                                            {!exp.currentlyWorking && (
+                                              <NeoDatePicker 
+                                                  label="End Date" 
+                                                  value={exp.endDate} 
+                                                  onChange={(e) => handleExperienceChange(idx, 'endDate', e.target.value)} 
+                                                  disabled={!isEditing} 
+                                              />
+                                            )}
+                                        </div>
                                        <div className="mb-2"><textarea value={exp.description} onChange={(e) => handleExperienceChange(idx, 'description', e.target.value)} disabled={!isEditing} className="w-full border-2 border-black p-2 font-mono text-sm h-20 dark:bg-zinc-800 dark:text-white" placeholder="Roles..."></textarea></div>
                                        <div className="flex items-center gap-2">
                                           <NeoCheckbox 
@@ -808,9 +977,21 @@ export default function ProfilePage() {
                       <div className="space-y-6">
                            <div>
                              <label className="block font-bold text-sm mb-1 dark:text-white">Resume</label>
-                             <div className={`border-2 border-dashed ${formData.resumeFileURL ? 'border-neo-green bg-green-50' : 'border-gray-300'} p-6 text-center rounded-lg cursor-pointer`} onClick={() => document.getElementById('resume-upl').click()}>
-                                 {formData.resumeFileURL ? <div className="flex flex-col items-center gap-3"><span className="font-bold text-neo-black block">Resume Uploaded!</span><a href={formData.resumeFileURL} target="_blank" className="px-4 py-2 bg-neo-black text-white text-xs font-bold uppercase" onClick={(e) => e.stopPropagation()}>View Resume</a></div> : <span className="font-bold text-gray-500">Upload Resume</span>}
-                                 <input type="file" id="resume-upl" className="hidden" accept=".pdf,.doc" onChange={handleResumeUpload} />
+                             <div className={`border-2 border-dashed ${formData.resumeFileURL ? 'border-neo-green bg-green-50' : 'border-gray-300'} p-6 text-center rounded-lg ${isEditing && !isUploading ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'} ${isUploading ? 'opacity-50' : ''}`} onClick={() => isEditing && !isUploading && document.getElementById('resume-upl').click()}>
+                                 {isUploading ? (
+                                   <div className="flex flex-col items-center gap-2">
+                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-neo-black"></div>
+                                     <span className="font-bold text-gray-500">Uploading resume...</span>
+                                   </div>
+                                 ) : formData.resumeFileURL ? (
+                                   <div className="flex flex-col items-center gap-3">
+                                     <span className="font-bold text-neo-black block">Resume Uploaded!</span>
+                                     <a href={formData.resumeFileURL} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-neo-black text-white text-xs font-bold uppercase hover:bg-gray-800" onClick={(e) => e.stopPropagation()}>View Resume</a>
+                                   </div>
+                                 ) : (
+                                   <span className="font-bold text-gray-500">{isEditing ? 'Click to Upload Resume' : 'No Resume Uploaded'}</span>
+                                 )}
+                                 <input type="file" id="resume-upl" className="hidden" accept=".pdf,.doc,.docx" onChange={handleResumeUpload} disabled={!isEditing || isUploading} />
                              </div>
                            </div>
 
@@ -818,29 +999,111 @@ export default function ProfilePage() {
                            <div className="border-t pt-4">
                                <h4 className="font-bold uppercase mb-4">Job Preferences</h4>
                                <div className="space-y-4">
-                                   <div><label className="text-xs font-bold block mb-1">Job Type</label><div className="flex flex-wrap gap-2">{["Full-time", "Part-time", "Internship", "Freelance"].map(t => <button key={t} onClick={() => isEditing && toggleSelection('jobType', t)} className={`px-2 py-1 text-xs border-2 border-black ${formData.jobPreferences.jobType.includes(t) ? 'bg-black text-white' : 'bg-white'}`}>{t}</button>)}</div></div>
-                                   <div><label className="text-xs font-bold block mb-1">Work Mode</label><div className="flex flex-wrap gap-2">{["Remote", "On-site", "Hybrid"].map(m => <button key={m} onClick={() => isEditing && toggleSelection('workMode', m)} className={`px-2 py-1 text-xs border-2 border-black ${formData.jobPreferences.workMode.includes(m) ? 'bg-black text-white' : 'bg-white'}`}>{m}</button>)}</div></div>
+                                                                       <div>
+                                      <label className="text-xs font-bold block mb-1 dark:text-gray-400 uppercase tracking-tighter">Job Type</label>
+                                      <div className="flex flex-wrap gap-2">
+                                        {["Full-time", "Part-time", "Contract", "Internship", "Freelance"].map(t => (
+                                          <button 
+                                            key={t} 
+                                            onClick={() => isEditing && toggleSelection('jobType', t)} 
+                                            className={`px-3 py-1.5 text-xs font-bold border-2 border-neo-black dark:border-white transition-all transform hover:-translate-y-0.5
+                                              ${isEditing ? 'cursor-pointer' : 'cursor-default'} 
+                                              ${formData.jobPreferences.jobType.includes(t) 
+                                                ? 'bg-neo-black text-white dark:bg-white dark:text-black' 
+                                                : 'bg-white text-neo-black dark:bg-zinc-800 dark:text-white hover:bg-gray-100 dark:hover:bg-zinc-700'}`}
+                                          >
+                                            {t}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <label className="text-xs font-bold block mb-1 dark:text-gray-400 uppercase tracking-tighter">Work Mode</label>
+                                      <div className="flex flex-wrap gap-2">
+                                        {["Remote", "On-site", "Hybrid"].map(m => (
+                                          <button 
+                                            key={m} 
+                                            onClick={() => isEditing && toggleSelection('workMode', m)} 
+                                            className={`px-3 py-1.5 text-xs font-bold border-2 border-neo-black dark:border-white transition-all transform hover:-translate-y-0.5
+                                              ${isEditing ? 'cursor-pointer' : 'cursor-default'} 
+                                              ${formData.jobPreferences.workMode.includes(m) 
+                                                ? 'bg-neo-black text-white dark:bg-white dark:text-black' 
+                                                : 'bg-white text-neo-black dark:bg-zinc-800 dark:text-white hover:bg-gray-100 dark:hover:bg-zinc-700'}`}
+                                          >
+                                            {m}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
                                    <div><label className="text-xs font-bold block mb-1">Preferred Locations</label>
                                      {isEditing? <NeoInput value={formData.preferredLocationsString} onChange={(e) => setFormData(p => ({...p, preferredLocationsString: e.target.value, jobPreferences: {...p.jobPreferences, preferredLocations: e.target.value.split(',').map(s=>s.trim())}}))} /> 
                                      : <div className="flex gap-2">{formData.jobPreferences.preferredLocations.map(l=><NeoBadge key={l}>{l}</NeoBadge>)}</div>}
+                                    </div>
+                                    <div className="flex items-center gap-2 py-2">
+                                        <NeoCheckbox 
+                                            id="relocate" 
+                                            checked={formData.jobPreferences.willingToRelocate} 
+                                            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, jobPreferences: { ...prev.jobPreferences, willingToRelocate: checked } }))}
+                                            disabled={!isEditing}
+                                            label="Willing to relocate"
+                                        />
+                                    </div>
+
+                                   </div>
+                               </div>
+                           
+
+                            <div className="border-t-2 border-gray-100 dark:border-zinc-800 pt-6">
+                               <h4 className="font-black uppercase mb-6 dark:text-white flex items-center gap-2">
+                                 <span className="w-2 h-6 bg-neo-yellow block"></span>
+                                 Expected Salary
+                               </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                   <NeoInput 
+                                      label="Min Salary" 
+                                      type="number" 
+                                      value={formData.expectedSalary.min} 
+                                      onChange={(e) => setFormData(p => ({...p, expectedSalary: {...p.expectedSalary, min: e.target.value}}))} 
+                                      disabled={!isEditing} 
+                                      placeholder="50000"
+                                   />
+                                   <NeoInput 
+                                      label="Max Salary" 
+                                      type="number" 
+                                      value={formData.expectedSalary.max} 
+                                      onChange={(e) => setFormData(p => ({...p, expectedSalary: {...p.expectedSalary, max: e.target.value}}))} 
+                                      disabled={!isEditing} 
+                                      placeholder="80000"
+                                   />
+                                   <div>
+                                       <label className="block font-bold text-xs mb-1 uppercase text-gray-400 dark:text-gray-500 tracking-widest">Currency</label>
+                                       <div className="relative">
+                                          <select 
+                                               value={formData.expectedSalary.currency} 
+                                               onChange={(e) => setFormData(p => ({...p, expectedSalary: {...p.expectedSalary, currency: e.target.value}}))} 
+                                               disabled={!isEditing}
+                                               className="w-full bg-white dark:bg-zinc-900 border-2 border-neo-black dark:border-white p-3 font-mono text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-neo-yellow appearance-none cursor-pointer"
+                                          >
+                                               <option value="INR">INR (₹)</option>
+                                               <option value="USD">USD ($)</option>
+                                               <option value="EUR">EUR (€)</option>
+                                               <option value="GBP">GBP (£)</option>
+                                          </select>
+                                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none dark:text-white">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path></svg>
+                                          </div>
+                                       </div>
                                    </div>
                                </div>
                            </div>
 
-                            <div className="border-t pt-4">
-                               <h4 className="font-bold uppercase mb-4">Expected Salary</h4>
-                               <div className="flex gap-4">
-                                   <NeoInput placeholder="Min" type="number" value={formData.expectedSalary.min} onChange={(e) => setFormData(p => ({...p, expectedSalary: {...p.expectedSalary, min: e.target.value}}))} disabled={!isEditing} />
-                                   <NeoInput placeholder="Max" type="number" value={formData.expectedSalary.max} onChange={(e) => setFormData(p => ({...p, expectedSalary: {...p.expectedSalary, max: e.target.value}}))} disabled={!isEditing} />
-                               </div>
-                           </div>
-
                            <div>
-                             <label className="block font-bold text-sm mb-1 dark:text-white">Social Links</label>
+                              <h4 className="font-bold uppercase mb-4">Social Links</h4>
                              <div className="space-y-4">
-                               <NeoInput name="portfolioUrl" value={formData.portfolioUrl} onChange={handleInputChange} placeholder="Portfolio URL" disabled={!isEditing} />
-                               <NeoInput name="linkedinUrl" value={formData.linkedinUrl} onChange={handleInputChange} placeholder="LinkedIn URL" disabled={!isEditing} />
-                               <NeoInput name="githubUrl" value={formData.githubUrl} onChange={handleInputChange} placeholder="GitHub URL" disabled={!isEditing} />
+                                <DisplayField isEditing={isEditing} label="Portfolio URL" value={formData.portfolioUrl} name="portfolioUrl" onChange={handleInputChange} placeholder="https://yourportfolio.com" />
+                                <DisplayField isEditing={isEditing} label="LinkedIn URL" value={formData.linkedinUrl} name="linkedinUrl" onChange={handleInputChange} placeholder="https://linkedin.com/in/username" />
+                                <DisplayField isEditing={isEditing} label="GitHub URL" value={formData.githubUrl} name="githubUrl" onChange={handleInputChange} placeholder="https://github.com/username" />
                              </div>
                            </div>
                       </div>

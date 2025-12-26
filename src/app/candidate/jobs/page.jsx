@@ -5,7 +5,8 @@ import AuthGuard from '@/components/auth/AuthGuard';
 import { useDataStore } from '@/lib/store';
 import { NeoButton, NeoCard, NeoBadge, NeoInput } from '@/components/ui/neo';
 import { Search, SlidersHorizontal, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
+import ProfileCompletionBanner from '@/components/shared/ProfileCompletionBanner';
 
 export default function CandidateJobs() {
   const { jobs, fetchJobs } = useDataStore();
@@ -67,6 +68,7 @@ export default function CandidateJobs() {
 
   return (
     <AuthGuard allowedRoles={['candidate']}>
+      <ProfileCompletionBanner />
       <div className="max-w-7xl mx-auto px-4 py-8">
         <h1 className="text-4xl font-black uppercase mb-8 dark:text-white">Available <span className="text-neo-green">Positions</span></h1>
         
@@ -152,7 +154,7 @@ export default function CandidateJobs() {
                     <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                       <div>
                         <h2 className="text-2xl font-bold dark:text-white">{job.title}</h2>
-                        <p className="text-lg font-mono text-gray-600 dark:text-gray-400 font-bold">{job.company} • {job.location}</p>
+                        <p className="text-lg font-mono text-gray-600 dark:text-gray-400 font-bold">{job.company} • {job.location} • Closes: {formatDate(job.applicationDeadline || job.deadline || job.application_deadline || job.applicationdeadline || job.ApplicationDeadline || job.closingDate)}</p>
                         <div className="flex gap-2 mt-3 flex-wrap">
                           <NeoBadge variant="blue">{job.type || 'Full-time'}</NeoBadge>
                           <NeoBadge variant="green">{formatSalary(job.salary)}</NeoBadge>

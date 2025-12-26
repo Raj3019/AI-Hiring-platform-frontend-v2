@@ -1,11 +1,13 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import AuthGuard from '@/components/auth/AuthGuard';
-import { NeoCard, NeoButton, NeoInput, NeoModal, NeoBadge } from '@/components/ui/neo';
+import { NeoCard, NeoButton, NeoInput, NeoModal, NeoBadge, NeoDatePicker } from '@/components/ui/neo';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
 import { jobsAPI, recruiterAPI } from '@/lib/api';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { getMissingProfileFields, formatDate } from '@/lib/utils';
+import ProfileCompletionBanner from '@/components/shared/ProfileCompletionBanner';
 
 const INITIAL_FORM_STATE = {
     id: '',
@@ -46,6 +48,9 @@ export default function RecruiterJobs() {
   const [isFormLoading, setIsFormLoading] = useState(false);
   const [error, setError] = useState('');
   const [expandedInsightId, setExpandedInsightId] = useState(null);
+  
+  const missingFields = getMissingProfileFields(user);
+  const isProfileIncomplete = missingFields.length > 0;
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -105,8 +110,8 @@ export default function RecruiterJobs() {
   };
 
   const handleArrayInput = (e, field) => {
-      const values = e.target.value.split(',').map(s => s.trim());
-      setFormData(prev => ({ ...prev, [field]: values }));
+    // Store the raw value as a string to allow the user to type spaces
+    setFormData(prev => ({ ...prev, [field]: e.target.value }));
   };
 
   const handleViewCandidates = (jobId) => {
@@ -200,6 +205,12 @@ export default function RecruiterJobs() {
                 max: Number(formData.salaryMax) || 0,
                 currency: formData.currency || 'USD'
             },
+            skillsRequired: typeof formData.skillsRequired === 'string' 
+                ? formData.skillsRequired.split(',').map(s => s.trim()).filter(s => s !== '')
+                : formData.skillsRequired,
+            benefits: typeof formData.benefits === 'string'
+                ? formData.benefits.split(',').map(s => s.trim()).filter(s => s !== '')
+                : formData.benefits,
             companyName: formData.company
         };
 
@@ -234,6 +245,8 @@ export default function RecruiterJobs() {
 
   return (
     <AuthGuard allowedRoles={['recruiter']}>
+    <div className="min-h-screen bg-neo-bg dark:bg-zinc-950">
+    <ProfileCompletionBanner />
     <div className="max-w-6xl mx-auto px-4 py-8">
       {successMessage && (
         <div className="fixed top-24 right-4 z-50 animate-in slide-in-from-right-5">
@@ -279,7 +292,7 @@ export default function RecruiterJobs() {
                                 {job.status}
                             </span>
                         </div>
-                        <p className="font-mono text-xs text-gray-500 dark:text-gray-400 mb-2">{job.companyName || job.company} • {job.location}</p>
+                        <p className="font-mono text-xs text-gray-500 dark:text-gray-400 mb-2">{job.companyName || job.company} • {job.location} • Closes: {formatDate(job.applicationDeadline || job.deadline || job.application_deadline || job.applicationdeadline || job.ApplicationDeadline || job.closingDate)}</p>
                         <div className="flex flex-wrap gap-2 mt-2">
                             <span className="text-xs font-mono font-bold bg-neo-yellow text-black px-2 py-1 border-2 border-black uppercase">
                                 Dept: {job.department}
@@ -445,14 +458,13 @@ export default function RecruiterJobs() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <div>
                     <label className="block font-black uppercase mb-1 text-xs dark:text-white">Deadline *</label>
-                    <NeoInput 
-                        type="date" 
+                    <NeoDatePicker 
                         name="applicationDeadline" 
                         value={formData.applicationDeadline ? formData.applicationDeadline.split('T')[0] : ''} 
                         onChange={handleInputChange} 
-                        min={new Date().toISOString().split('T')[0]}
+                        minDate={new Date().toISOString().split('T')[0]}
+                        className="border-4"
                         required
-                        className="border-4" 
                     />
                 </div>
                  <div>
@@ -477,9 +489,15 @@ export default function RecruiterJobs() {
 
             <div className="flex justify-end gap-2 pt-4 border-t-2 border-gray-100 dark:border-zinc-700">
                 <NeoButton type="button" variant="ghost" onClick={() => setIsModalOpen(false)} disabled={isFormLoading}>CANCEL</NeoButton>
-                <NeoButton type="submit" className="bg-neo-orange text-white border-neo-black" isLoading={isFormLoading} disabled={isFormLoading}>
-                    {isEditing ? 'UPDATE JOB' : 'PUBLISH JOB'}
-                </NeoButton>
+                {isProfileIncomplete ? (
+                    <Link href="/recruiter/profile">
+                        <NeoButton className="bg-neo-orange text-white">COMPLETE PROFILE TO POST</NeoButton>
+                    </Link>
+                ) : (
+                    <NeoButton type="submit" className="bg-neo-orange text-white border-neo-black" isLoading={isFormLoading} disabled={isFormLoading}>
+                        {isEditing ? 'UPDATE JOB' : 'PUBLISH JOB'}
+                    </NeoButton>
+                )}
             </div>
          </form>
          )}
@@ -680,6 +698,7 @@ export default function RecruiterJobs() {
               <NeoButton variant="secondary" onClick={() => setCandidateModalOpen(false)} className="text-sm py-3 px-8">CLOSE VIEWER</NeoButton>
           </div> */}
       </NeoModal>
+    </div>
     </div>
     </AuthGuard>
   );

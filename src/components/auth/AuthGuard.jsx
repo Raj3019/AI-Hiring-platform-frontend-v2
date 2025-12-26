@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
-import { cookieStorage } from '@/lib/utils';
+import { cookieStorage, hasValidAuth, getStoredAuth } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
 // Helper to check if user has an allowed role
@@ -41,14 +41,6 @@ const normalizeRole = (role) => {
   return role;
 };
 
-// Check if token exists in cookies (for HMR protection)
-const hasTokenInCookies = () => {
-  if (typeof document === 'undefined') return false;
-  const token = cookieStorage.getItem('token');
-  const authStorage = cookieStorage.getItem('auth-storage');
-  return !!(token || authStorage);
-};
-
 export default function AuthGuard({ children, allowedRoles }) {
   const { user, isAuthenticated, fetchProfile } = useAuthStore();
   const router = useRouter();
@@ -73,7 +65,7 @@ export default function AuthGuard({ children, allowedRoles }) {
         isAuthenticated,
         isAllowed,
         hasUser: !!user,
-        hasToken: hasTokenInCookies(),
+        hasToken: hasValidAuth(),
         isHydrating
       });
     }
@@ -92,9 +84,12 @@ export default function AuthGuard({ children, allowedRoles }) {
       }
       
       // If token exists but store not hydrated yet, try to fetch profile (auto-detect)
-      if (hasTokenInCookies() && !isAuthenticated) {
+      if (hasValidAuth() && !isAuthenticated) {
         console.log('🔄 Token found in cookies but store not hydrated, attempting to restore session (auto)...');
-        await fetchProfile();
+        
+        // Try to get stored role to avoid noisy 401s
+        const storedUser = getStoredAuth();
+        await fetchProfile(storedUser?.role || undefined);
       }
       
       setIsHydrating(false);
@@ -109,7 +104,7 @@ export default function AuthGuard({ children, allowedRoles }) {
     if (!mounted || isHydrating) return;
 
     // Double-check: if token exists but somehow not authenticated, don't redirect yet
-    if (!isAuthenticated && hasTokenInCookies()) {
+    if (!isAuthenticated && hasValidAuth()) {
       console.log('⏳ Token exists but not authenticated yet, waiting...');
       return;
     }
@@ -141,7 +136,7 @@ export default function AuthGuard({ children, allowedRoles }) {
 
   if (!isAuthenticated || !isAllowed) {
     // If token exists, show loader (might still be hydrating)
-    if (hasTokenInCookies()) {
+    if (hasValidAuth()) {
       return (
         <div className="h-screen w-full flex items-center justify-center bg-neo-bg dark:bg-zinc-950">
           <Loader2 className="w-10 h-10 animate-spin text-neo-yellow" />

@@ -2,20 +2,10 @@
 
 import { useEffect } from 'react';
 import { useAuthStore } from '@/lib/store';
-import { cookieStorage } from '@/lib/utils';
-import { usePathname } from 'next/navigation';
-
-// Check if token exists in cookies
-const hasTokenInCookies = () => {
-  if (typeof document === 'undefined') return false;
-  const token = cookieStorage.getItem('token');
-  const authStorage = cookieStorage.getItem('auth-storage');
-  return !!(token || authStorage);
-};
+import { cookieStorage, hasValidAuth, getStoredAuth } from '@/lib/utils';
 
 export default function AuthInitializer() {
   const { fetchProfile, isAuthenticated, user } = useAuthStore();
-  const pathname = usePathname();
 
   useEffect(() => {
     // Try to fetch profile on mount to check if user is logged in via cookies
@@ -26,18 +16,18 @@ export default function AuthInitializer() {
         return;
       }
       
-      // Check if we have a token in cookies
-      if (!hasTokenInCookies()) {
+      // Check if we might have a session
+      if (!hasValidAuth()) {
         console.log('🔓 AuthInitializer: No token found in cookies, skipping profile fetch');
         return;
       }
       
-      console.log('🔄 AuthInitializer: Token found, attempting to restore session...');
+      // Try to determine the role from stored state before hydration
+      const storedUser = getStoredAuth();
+      const currentRole = user?.role || storedUser?.role;
       
-      // Check if we already have a user in the store (from cookie persistence)
-      const currentRole = useAuthStore.getState().user?.role;
       try {
-        // Use auto-detect fetch to try recruiter first then employee
+        // Pass the role if we have it to avoid the "guess and check" 401/403 cycle
         await fetchProfile(currentRole || undefined);
         console.log('✅ AuthInitializer: Session restored successfully');
       } catch (error) {

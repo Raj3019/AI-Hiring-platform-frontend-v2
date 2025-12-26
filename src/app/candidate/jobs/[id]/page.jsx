@@ -4,9 +4,10 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthGuard from '@/components/auth/AuthGuard';
 import { useAuthStore, useDataStore } from '@/lib/store';
-import { getMissingProfileFields } from '@/lib/utils';
+import { getMissingProfileFields, formatDate } from '@/lib/utils';
 import { jobsAPI } from '@/lib/api';
 import { NeoCard, NeoButton, NeoBadge } from '@/components/ui/neo';
+import ProfileCompletionBanner from '@/components/shared/ProfileCompletionBanner';
 
 const formatFieldName = (field) => {
     const map = {
@@ -61,6 +62,9 @@ export default function JobDetailsPage() {
     if (s.includes('shortlist')) return 'yellow';
     return 'blue';
   };
+
+  const missingFields = user ? getMissingProfileFields(user) : [];
+  const isProfileIncomplete = missingFields.length > 0;
 
   useEffect(() => {
     const fetchJobData = async () => {
@@ -247,6 +251,7 @@ export default function JobDetailsPage() {
 
   return (
     <AuthGuard allowedRoles={['candidate']}>
+      <ProfileCompletionBanner />
       <div className="max-w-7xl mx-auto px-4 py-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
         
         {/* Navigation */}
@@ -279,6 +284,11 @@ export default function JobDetailsPage() {
                       </span>
                   )}
               </span>
+              <span className="hidden md:inline">•</span>
+              <span className="flex items-center gap-2">
+                  <span className="text-xl">📅</span> 
+                  Posted: {formatDate(job.createdAt)}
+              </span>
           </div>
           <div className="mt-6 flex flex-wrap gap-3">
                <NeoBadge variant="blue">{job.jobType || 'Full-time'}</NeoBadge>
@@ -300,7 +310,7 @@ export default function JobDetailsPage() {
                     </div>
                     <div className="bg-neo-red/10 dark:bg-red-900/20 border-4 border-neo-red p-6 flex flex-col justify-center items-center text-center">
                         <span className="font-bold uppercase text-xs tracking-widest text-neo-red mb-1">Apply Before</span>
-                        <span className="text-3xl font-black text-neo-black dark:text-white">{job.applicationDeadline ? job.applicationDeadline.split('T')[0] : '2024-12-31'}</span>
+                        <span className="text-3xl font-black text-neo-black dark:text-white">{formatDate(job.applicationDeadline)}</span>
                     </div>
                 </div>
 
@@ -381,7 +391,7 @@ export default function JobDetailsPage() {
                                     <button
                                       type="button"
                                       onClick={() => hasProfileResume && setResumeSource('profile')}
-                                      disabled={!hasProfileResume}
+                                      disabled={!hasProfileResume || isProfileIncomplete}
                                       className={`p-3 border-3 rounded-lg font-bold text-xs uppercase transition-all flex flex-col items-center gap-1 ${
                                         resumeSource === 'profile'
                                           ? 'bg-neo-green text-white border-neo-black dark:border-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,1)]'
@@ -400,14 +410,31 @@ export default function JobDetailsPage() {
                                 {/* Upload New Resume Section */}
                                 {resumeSource === 'upload' && (
                                   <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                                    <div className="border-4 border-dashed border-gray-300 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-800 p-6 text-center hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer group rounded-lg">
-                                        <input type="file" onChange={handleFileUpload} className="hidden" id="resume-upload" accept=".pdf,.doc,.docx" />
-                                        <label htmlFor="resume-upload" className="cursor-pointer block">
-                                            <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">📂</div>
-                                            <p className="font-bold text-sm uppercase dark:text-white">Drop Resume Here</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">PDF, DOCX (Max 5MB)</p>
-                                        </label>
-                                    </div>
+                                  <div className={`border-4 border-dashed p-6 text-center transition-colors rounded-lg ${
+                                    isProfileIncomplete 
+                                      ? 'border-gray-200 bg-gray-50/50 cursor-not-allowed' 
+                                      : 'border-gray-300 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700 cursor-pointer group'
+                                  }`}>
+                                      <input 
+                                        type="file" 
+                                        onChange={handleFileUpload} 
+                                        className="hidden" 
+                                        id="resume-upload" 
+                                        accept=".pdf,.doc,.docx" 
+                                        disabled={isProfileIncomplete}
+                                      />
+                                      <label htmlFor="resume-upload" className={`block ${isProfileIncomplete ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                                          <div className={`text-4xl mb-2 transition-transform ${!isProfileIncomplete && 'group-hover:scale-110'}`}>
+                                            {isProfileIncomplete ? '🔒' : '📂'}
+                                          </div>
+                                          <p className={`font-bold text-sm uppercase ${isProfileIncomplete ? 'text-gray-400' : 'dark:text-white'}`}>
+                                            {isProfileIncomplete ? 'Profile Incomplete' : 'Drop Resume Here'}
+                                          </p>
+                                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                            {isProfileIncomplete ? 'Complete your profile to enable upload' : 'PDF, DOCX (Max 5MB)'}
+                                          </p>
+                                      </label>
+                                  </div>
 
                                     {resumeName && (
                                         <div className="animate-in fade-in slide-in-from-top-2 mt-3">
@@ -417,8 +444,8 @@ export default function JobDetailsPage() {
                                           </div>
                                           <NeoButton 
                                               onClick={handleAnalyze} 
-                                              disabled={isAnalyzing} 
-                                              className="w-full bg-white dark:bg-zinc-800 text-black dark:text-white border-2 border-neo-black dark:border-white hover:bg-gray-100 dark:hover:bg-zinc-700 py-3 text-xs shadow-sm"
+                                              disabled={isAnalyzing || isProfileIncomplete} 
+                                              className={`w-full bg-white dark:bg-zinc-800 text-black dark:text-white border-2 border-neo-black dark:border-white hover:bg-gray-100 dark:hover:bg-zinc-700 py-3 text-xs shadow-sm ${isProfileIncomplete ? 'opacity-50 cursor-not-allowed' : ''}`}
                                           >
                                               {isAnalyzing ? (
                                                   <span className="flex items-center justify-center gap-2">
@@ -455,8 +482,8 @@ export default function JobDetailsPage() {
                                     </div>
                                     <NeoButton 
                                         onClick={handleAnalyze} 
-                                        disabled={isAnalyzing} 
-                                        className="w-full bg-white dark:bg-zinc-800 text-black dark:text-white border-2 border-neo-black dark:border-white hover:bg-gray-100 dark:hover:bg-zinc-700 py-3 text-xs shadow-sm mt-3"
+                                        disabled={isAnalyzing || isProfileIncomplete} 
+                                        className={`w-full bg-white dark:bg-zinc-800 text-black dark:text-white border-2 border-neo-black dark:border-white hover:bg-gray-100 dark:hover:bg-zinc-700 py-3 text-xs shadow-sm mt-3 ${isProfileIncomplete ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         {isAnalyzing ? (
                                             <span className="flex items-center justify-center gap-2">
@@ -473,7 +500,7 @@ export default function JobDetailsPage() {
                                   disabled={
                                     (resumeSource === 'upload' && !resumeFile) || 
                                     (resumeSource === 'profile' && !hasProfileResume) || 
-                                    (user && getMissingProfileFields(user).length > 0) ||
+                                    isProfileIncomplete ||
                                     isApplying
                                   }
                                 >
@@ -481,17 +508,17 @@ export default function JobDetailsPage() {
                                         <span className="flex items-center justify-center gap-2">
                                             <span className="animate-spin">⏳</span> Submitting...
                                         </span>
-                                    ) : (user && getMissingProfileFields(user).length > 0) ? (
+                                    ) : isProfileIncomplete ? (
                                         <span className="flex items-center justify-center gap-2">
                                             <span>⚠️</span> Complete Profile to Apply
                                         </span>
                                     ) : 'SUBMIT APPLICATION'}
                                 </NeoButton>
-                                {user && getMissingProfileFields(user).length > 0 && (
+                                {isProfileIncomplete && (
                                     <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-900 text-center rounded">
                                         <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase mb-1">Missing required fields:</p>
                                         <p className="text-xs text-gray-600 dark:text-gray-400">
-                                            {getMissingProfileFields(user).map(f => formatFieldName(f)).join(', ')}
+                                            {missingFields.map(f => formatFieldName(f)).join(', ')}
                                         </p>
                                         <Link href="/profile" className="block mt-2 text-xs font-black underline text-red-600 hover:text-red-800">
                                             Go to Profile →

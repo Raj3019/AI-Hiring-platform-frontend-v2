@@ -51,7 +51,7 @@ export const useAuthStore = create(
           set({ user, isAuthenticated: true, isLoading: false });
           return { success: true, user };
         } catch (error) {
-          const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
+          const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Login failed. Please try again.';
           set({ error: errorMessage, isLoading: false });
           return { success: false, error: errorMessage };
         }
@@ -75,7 +75,7 @@ export const useAuthStore = create(
           set({ user, isAuthenticated: true, isLoading: false });
           return { success: true, user };
         } catch (error) {
-          const errorMessage = error.response?.data?.message || 'Signup failed. Please try again.';
+          const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Signup failed. Please try again.';
           set({ error: errorMessage, isLoading: false });
           return { success: false, error: errorMessage };
         }
@@ -131,7 +131,10 @@ export const useAuthStore = create(
               set({ user, isAuthenticated: true, isLoading: false });
               return { success: true, data: user };
             } catch (empErr) {
-              const errorMessage = empErr.response?.data?.message || recErr.response?.data?.message || 'Failed to fetch profile.';
+              const errorMessage =
+                empErr.response?.data?.error || empErr.response?.data?.message ||
+                recErr.response?.data?.error || recErr.response?.data?.message ||
+                'Failed to fetch profile.';
               if (empErr.response?.status === 401 || empErr.response?.status === 403 || recErr.response?.status === 401 || recErr.response?.status === 403) {
                 set({ user: null, isAuthenticated: false, error: errorMessage, isLoading: false });
               } else {
@@ -141,7 +144,7 @@ export const useAuthStore = create(
             }
           }
         } catch (error) {
-          const errorMessage = error.response?.data?.message || 'Failed to fetch profile.';
+          const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to fetch profile.';
           if (error.response?.status === 401 || error.response?.status === 403) {
             set({ user: null, isAuthenticated: false, error: errorMessage, isLoading: false });
           } else {

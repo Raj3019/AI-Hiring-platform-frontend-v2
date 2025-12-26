@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
 import { NeoCard, NeoBadge, NeoButton, NeoInput } from '@/components/ui/neo';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import ProfileCompletionBanner from '@/components/shared/ProfileCompletionBanner';
+import { formatDate } from '@/lib/utils';
 
 export default function CandidateApplications() {
   const { user, fetchProfile } = useAuthStore();
@@ -67,6 +69,7 @@ export default function CandidateApplications() {
 
   return (
     <AuthGuard allowedRoles={['candidate']}>
+      <ProfileCompletionBanner />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <h1 className="text-4xl font-black uppercase mb-8 dark:text-white">My <span className="text-neo-pink">Applications</span></h1>
         
@@ -106,7 +109,7 @@ export default function CandidateApplications() {
                           <div className="flex-1">
                               <h3 className="text-xl md:text-2xl font-black uppercase dark:text-white mb-1">{app.job?.title || 'Job Unavailable'}</h3>
                               <p className="font-mono text-sm font-bold text-gray-500 dark:text-gray-400 mb-3">
-                                  {app.job?.companyName || 'Unknown Company'} • Applied: {new Date(app.appliedAt).toLocaleDateString()}
+                                  {app.job?.companyName || 'Unknown Company'} • Applied: {formatDate(app.appliedAt)}
                               </p>
                               <div className="flex flex-wrap gap-2">
                                   {app.job?.location && (

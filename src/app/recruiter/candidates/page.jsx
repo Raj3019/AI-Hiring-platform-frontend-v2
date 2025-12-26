@@ -5,6 +5,7 @@ import { NeoCard, NeoButton, NeoInput } from '@/components/ui/neo';
 import { recruiterAPI } from '@/lib/api';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import ProfileCompletionBanner from '@/components/shared/ProfileCompletionBanner';
 
 export default function CandidatesPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,6 +66,8 @@ export default function CandidatesPage() {
 
   return (
     <AuthGuard allowedRoles={['recruiter']}>
+    <div className="min-h-screen bg-neo-bg dark:bg-zinc-950">
+    <ProfileCompletionBanner />
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-end mb-8 pb-4 gap-4">
@@ -189,7 +192,8 @@ export default function CandidatesPage() {
               )}
           </div>
        )}
-    </div>
+     </div>
+     </div>
     </AuthGuard>
   );
 }

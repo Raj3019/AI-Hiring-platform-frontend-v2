@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useDataStore, useAuthStore } from '@/lib/store';
 import { NeoButton, NeoCard, NeoBadge } from '@/components/ui/neo';
 import { MapPin, DollarSign, Briefcase } from 'lucide-react';
+import ProfileCompletionBanner from '@/components/shared/ProfileCompletionBanner';
 
 
 export default function JobsPage() {
@@ -15,7 +16,9 @@ export default function JobsPage() {
   }, [fetchJobs]);
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="min-h-screen bg-neo-bg dark:bg-zinc-950/50">
+      <ProfileCompletionBanner />
+      <div className="container mx-auto px-4 py-12">
       <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-4">
         <div>
           <h1 className="text-4xl font-black uppercase mb-2">Open Positions</h1>
@@ -56,6 +59,7 @@ export default function JobsPage() {
             </div>
           </NeoCard>
         ))}
+      </div>
       </div>
     </div>
   );

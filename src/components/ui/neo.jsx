@@ -177,8 +177,39 @@ export const NeoCheckbox = React.forwardRef(({ className, checked, onCheckedChan
 });
 NeoCheckbox.displayName = "NeoCheckbox";
 
+// --- NeoRadio ---
+export const NeoRadio = React.forwardRef(({ className, checked, onChange, label, id, disabled, ...props }, ref) => {
+  return (
+    <div className={cn("flex items-center gap-3", className)}>
+      <div 
+        className={cn(
+          "w-6 h-6 border-2 border-neo-black bg-white rounded-full flex items-center justify-center transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none dark:border-white dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] dark:bg-zinc-900",
+           checked && "bg-white dark:bg-zinc-900",
+           disabled && "opacity-50 cursor-not-allowed"
+        )}
+        onClick={() => !disabled && onChange && onChange(!checked)}
+        role="radio"
+        aria-checked={checked}
+        tabIndex={0}
+      >
+        {checked && <div className="w-2.5 h-2.5 bg-neo-yellow rounded-full border-2 border-neo-black dark:border-neo-black" />}
+      </div>
+      {label && (
+        <label 
+          htmlFor={id} 
+          className={cn("font-bold text-sm uppercase cursor-pointer dark:text-white select-none", disabled && "cursor-not-allowed text-gray-400")}
+          onClick={() => !disabled && onChange && onChange(!checked)}
+        >
+          {label}
+        </label>
+      )}
+    </div>
+  );
+});
+NeoRadio.displayName = "NeoRadio";
+
 // --- NeoDatePicker ---
-export const NeoDatePicker = ({ value, onChange, label, placeholder = "Select date", minDate, maxDate, ...props }) => {
+export const NeoDatePicker = ({ value, onChange, label, placeholder = "Select date", minDate, maxDate, className, ...props }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const [viewDate, setViewDate] = React.useState(value ? new Date(value) : new Date());
   
@@ -217,7 +248,10 @@ export const NeoDatePicker = ({ value, onChange, label, placeholder = "Select da
       {label && <label className="block text-sm font-bold text-neo-black dark:text-white mb-1.5">{label}</label>}
       
       <div 
-        className="w-full bg-white border-2 border-neo-black p-3 flex items-center justify-between cursor-pointer focus-within:ring-2 focus-within:ring-neo-yellow dark:bg-zinc-900 dark:border-white dark:text-white"
+        className={cn(
+            "w-full bg-white border-2 border-neo-black p-3 flex items-center justify-between cursor-pointer focus-within:ring-2 focus-within:ring-neo-yellow dark:bg-zinc-900 dark:border-white dark:text-white",
+            className
+        )}
         onClick={() => setIsOpen(!isOpen)}
       >
         <span className={cn("font-mono text-sm", !value && "text-gray-500")}>

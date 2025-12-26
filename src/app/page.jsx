@@ -3,6 +3,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { NeoButton, NeoBadge } from '@/components/ui/neo';
 import { useAuthStore } from '@/lib/store';
+import { hasValidAuth } from '@/lib/utils';
 
 // Helper Marquee
 const Marquee = ({ text, reverse, className }) => (
@@ -63,6 +64,12 @@ const Content = () => {
     ];
   
     const activeTestimonials = isRecruiterMode ? recruiterTestimonials : candidateTestimonials;
+    
+    // Anti-flash: if we have a valid token/session, don't show the landing page
+    // because a redirect to dashboard is likely coming soon.
+    if (hasValidAuth()) {
+        return null;
+    }
 
     return (
         <div className="bg-neo-bg overflow-x-hidden transition-colors duration-200">

@@ -7,6 +7,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
 import { jobsAPI } from '@/lib/api';
+import ProfileCompletionBanner from '@/components/shared/ProfileCompletionBanner';
+import { formatDate } from '@/lib/utils';
 
 // Mock gemini service if it doesn't exist
 const generateCandidateInsights = async (candidates) => {
@@ -20,6 +22,7 @@ const generateCandidateInsights = async (candidates) => {
 const RecruiterDashboard = () => {
   const { user, fetchProfile } = useAuthStore();
   const [insight, setInsight] = useState('Analyzing candidate data...');
+  const [mounted, setMounted] = useState(false);
   const [allPostings, setAllPostings] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
@@ -30,6 +33,7 @@ const RecruiterDashboard = () => {
   });
 
   useEffect(() => {
+    setMounted(true);
     fetchProfile('recruiter');
     
     // Simulate fetching candidates for insight generation
@@ -99,6 +103,8 @@ const RecruiterDashboard = () => {
 
   return (
     <AuthGuard allowedRoles={['recruiter']}>
+    <div className="min-h-screen bg-neo-bg dark:bg-zinc-950">
+    <ProfileCompletionBanner />
     <div className="max-w-7xl mx-auto px-4 py-8">
        {/* Header Section */}
        <div className="flex flex-col md:flex-row justify-between items-end mb-10 border-b-4 border-neo-black dark:border-white pb-6">
@@ -144,28 +150,30 @@ const RecruiterDashboard = () => {
              </div>
              <div className="flex-grow w-full overflow-x-auto overflow-y-hidden custom-scrollbar">
                 <div style={{ minWidth: Math.max(100, jobStats.length * 20) + '%' }}>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={jobStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <XAxis 
-                                dataKey="name" 
-                                tick={{fontFamily: 'Space Grotesk', fontWeight: 'bold', fontSize: 12, fill: '#888'}} 
-                                axisLine={false} 
-                                tickLine={false} 
-                                dy={10}
-                            />
-                            <Tooltip 
-                                cursor={{fill: '#000', opacity: 0.05}} 
-                                contentStyle={{
-                                    border: '3px solid black', 
-                                    boxShadow: '4px 4px 0px 0px black', 
-                                    fontFamily: 'Space Mono', 
-                                    fontWeight: 'bold',
-                                    borderRadius: '0px'
-                                }}
-                            />
-                            <Bar dataKey="applicants" fill="#FF6B6B" stroke="black" strokeWidth={3} radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {mounted && (
+                        <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={0}>
+                            <BarChart data={jobStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <XAxis 
+                                    dataKey="name" 
+                                    tick={{fontFamily: 'Space Grotesk', fontWeight: 'bold', fontSize: 12, fill: '#888'}} 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    dy={10}
+                                />
+                                <Tooltip 
+                                    cursor={{fill: '#000', opacity: 0.05}} 
+                                    contentStyle={{
+                                        border: '3px solid black', 
+                                        boxShadow: '4px 4px 0px 0px black', 
+                                        fontFamily: 'Space Mono', 
+                                        fontWeight: 'bold',
+                                        borderRadius: '0px'
+                                    }}
+                                />
+                                <Bar dataKey="applicants" fill="#FF6B6B" stroke="black" strokeWidth={3} radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
                 </div>
              </div>
           </NeoCard>
@@ -174,7 +182,7 @@ const RecruiterDashboard = () => {
              <div className="mb-6">
                  <div className="flex items-center gap-3 mb-4">
                      <span className="bg-neo-black text-white px-3 font-bold text-xs py-1 uppercase tracking-wider border dark:border-white">AI Analysis</span>
-                     <h3 className="text-2xl font-black uppercase dark:text-white">Candidate Reliability</h3>
+                     <h3 className="text-2xl font-black uppercase dark:text-white">Candidate Reliability (Beta)</h3>
                  </div>
                  <div className="bg-white dark:bg-zinc-900 border-4 border-neo-black dark:border-white p-6 shadow-sm">
                     <p className="font-mono text-base leading-relaxed font-medium text-gray-800 dark:text-gray-200">
@@ -217,7 +225,7 @@ const RecruiterDashboard = () => {
                            <tr key={job.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50/30 dark:hover:bg-zinc-800 transition-colors group">
                                <td className="py-6 px-8">
                                    <div className="font-black text-lg text-neo-black dark:text-white">{job.role}</div>
-                                   <div className="font-mono text-sm text-gray-400 mt-1 font-medium">{job.type}</div>
+                                   <div className="font-mono text-sm text-gray-400 mt-1 font-medium">{job.type} • {formatDate(job.createdAt)}</div>
                                </td>
                                 <td className="py-6 px-8">
                                     <span className={`inline-block rounded-full px-4 py-1.5 text-xs font-bold border capitalize ${getStatusStyles(job.status)}`}>
@@ -290,7 +298,8 @@ const RecruiterDashboard = () => {
                </div>
            )}
        </div>
-    </div>
+     </div>
+     </div>
     </AuthGuard>
   );
 };
