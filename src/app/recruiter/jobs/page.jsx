@@ -29,6 +29,7 @@ const INITIAL_FORM_STATE = {
     industry: '',
     benefits: [],
     educationRequired: '',
+    jobRequirements: [],
     postedBy: 'r1',
     applicantsCount: 0
 };
@@ -170,6 +171,7 @@ export default function RecruiterJobs() {
               salaryMax: jobData.salary?.max || jobData.salaryMax || 0,
               currency: jobData.salary?.currency || jobData.currency || 'USD',
               company: jobData.companyName || jobData.company || '',
+              jobRequirements: jobData.jobRequirements || jobData.jobRequirement || jobData.requirements || jobData.requirement || [],
           });
       } catch (err) {
           console.error("Error fetching job details:", err);
@@ -211,6 +213,7 @@ export default function RecruiterJobs() {
             benefits: typeof formData.benefits === 'string'
                 ? formData.benefits.split(',').map(s => s.trim()).filter(s => s !== '')
                 : formData.benefits,
+            jobRequirements: formData.jobRequirements,
             companyName: formData.company
         };
 
@@ -416,6 +419,18 @@ export default function RecruiterJobs() {
             <div>
                 <label className="block font-black uppercase mb-1 text-xs dark:text-white">Job Description *</label>
                 <textarea name="description" value={formData.description ?? ''} onChange={handleInputChange} className="w-full h-40 bg-white dark:bg-zinc-800 dark:text-white border-4 border-neo-black dark:border-white p-3 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-neo-orange placeholder:text-gray-400" placeholder="Describe the role..." required></textarea>
+            </div>
+
+            <div>
+                <label className="block font-black uppercase mb-1 text-xs dark:text-white">Job Requirements *</label>
+                <textarea 
+                    name="jobRequirements" 
+                    value={Array.isArray(formData.jobRequirements) ? formData.jobRequirements.join('\n') : (formData.jobRequirements || '')} 
+                    onChange={handleInputChange} 
+                    className="w-full h-48 bg-white dark:bg-zinc-800 dark:text-white border-4 border-neo-black dark:border-white p-3 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-neo-blue placeholder:text-gray-400" 
+                    placeholder="Key Responsibilities:&#10;- Bullet 1&#10;- Bullet 2&#10;&#10;Qualifications:&#10;- Bullet 1" 
+                    required
+                ></textarea>
             </div>
 
             <div>

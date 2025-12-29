@@ -92,7 +92,7 @@ export default function CandidateDashboard() {
                   <h2 className="text-xl font-bold mb-4 border-b-2 border-gray-200 dark:border-zinc-700 pb-2 dark:text-white shrink-0">Application Status</h2>
                   <div className="flex-1 w-full min-h-0">
                     {mounted && (
-                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                      <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={0}>
                           <BarChart data={data}>
                               <XAxis dataKey="name" tick={{fontFamily: 'Space Mono', fill: '#888', fontSize: 12}} axisLine={false} tickLine={false} />
                               <YAxis tick={{fontFamily: 'Space Mono', fill: '#888', fontSize: 12}} axisLine={false} tickLine={false} allowDecimals={false} />

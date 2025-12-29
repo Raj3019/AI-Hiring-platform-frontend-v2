@@ -45,7 +45,7 @@ export default function JobsPage() {
                 <span className="flex items-center gap-1"><DollarSign className="w-4 h-4" /> {job.salary?.min} - {job.salary?.max} {job.salary?.currency}</span>
               </div>
               <div className="flex gap-2 flex-wrap">
-                {job.skillsRequired?.map((req) => (
+                {Array.isArray(job.skillsRequired) && job.skillsRequired.map((req) => (
                   <span key={req} className="bg-gray-200 px-2 py-1 text-xs font-bold border border-neo-black">{req}</span>
                 ))}
               </div>

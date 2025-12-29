@@ -20,16 +20,21 @@ const Content = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, isAuthenticated } = useAuthStore();
+    const [mounted, setMounted] = useState(false);
     
     useEffect(() => {
-        if (isAuthenticated && user) {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (mounted && isAuthenticated && user) {
             if (user.role?.toLowerCase() === 'recuter' || user.role?.toLowerCase() === 'recruiter') {
                 router.push('/recruiter/dashboard');
             } else {
                 router.push('/candidate/dashboard');
             }
         }
-    }, [isAuthenticated, user, router]);
+    }, [mounted, isAuthenticated, user, router]);
 
     const isRecruiterMode = searchParams.get('mode') === 'recruiter';
   
@@ -67,8 +72,21 @@ const Content = () => {
     
     // Anti-flash: if we have a valid token/session, don't show the landing page
     // because a redirect to dashboard is likely coming soon.
+    
+    // 1. If we are hydrated and clearly authenticated
+    if (mounted && isAuthenticated && user) {
+        return <div className="min-h-screen bg-neo-bg flex items-center justify-center font-black text-2xl uppercase tracking-tighter">Redirecting to Dashboard...</div>;
+    }
+    
+    // 2. If we aren't hydrated yet but see an auth hint in cookies/storage
+    // We show a loading/restoring state immediately to prevent landing page flash
     if (hasValidAuth()) {
-        return null;
+        return <div className="min-h-screen bg-neo-bg flex items-center justify-center font-black text-2xl uppercase tracking-tighter italic text-neo-blue">Restoring your session...</div>;
+    }
+
+    // 3. Normal loading state during hydration for guests
+    if (!mounted) {
+        return <div className="min-h-screen bg-neo-bg"></div>;
     }
 
     return (

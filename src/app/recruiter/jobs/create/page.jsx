@@ -25,7 +25,7 @@ export default function CreateJob() {
     salary: '',
     type: 'Full-time',
     description: '',
-    requirements: ''
+    jobRequirements: ''
   });
 
   const handleSubmit = async (e) => {
@@ -38,7 +38,6 @@ export default function CreateJob() {
       addJob({
         ...formData,
         postedBy: user?._id || user?.id || 'recruiter_1',
-        requirements: formData.requirements.split(',').map(r => r.trim())
       });
       setIsLoading(false);
       router.push('/recruiter/jobs');
@@ -125,13 +124,16 @@ export default function CreateJob() {
                     />
                   </div>
 
-                  <NeoInput
-                    label="Requirements (comma separated)"
-                    placeholder="React, Node.js, TypeScript..."
-                    value={formData.requirements}
-                    onChange={e => setFormData({ ...formData, requirements: e.target.value })}
-                    required
-                  />
+                  <div>
+                    <label className="text-sm font-bold text-neo-black mb-1.5 block">Job Requirements</label>
+                    <textarea
+                      className="w-full neo-border p-3 bg-white focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all h-32"
+                      placeholder="List key requirements or sections..."
+                      value={formData.jobRequirements}
+                      onChange={e => setFormData({ ...formData, jobRequirements: e.target.value })}
+                      required
+                    />
+                  </div>
 
                   <NeoButton type="submit" size="lg" className="mt-4" isLoading={isLoading}>Post Job</NeoButton>
                 </form>

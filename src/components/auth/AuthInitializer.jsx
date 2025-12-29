@@ -10,28 +10,25 @@ export default function AuthInitializer() {
   useEffect(() => {
     // Try to fetch profile on mount to check if user is logged in via cookies
     const initAuth = async () => {
-      // Skip if already authenticated
-      if (isAuthenticated && user) {
-        console.log('✅ AuthInitializer: Already authenticated', { role: user.role });
+      if (isAuthenticated && user) return;
+
+      const path = typeof window !== 'undefined' ? window.location.pathname : '';
+      const isPublicPage = path === '/' || path === '/about' || path === '/jobs' || path.startsWith('/jobs/');
+      const hasAuthHint = hasValidAuth();
+
+      // If we are on a public page and have NO auth hint, don't ping the server
+      if (isPublicPage && !hasAuthHint) {
         return;
       }
-      
-      // Check if we might have a session
-      if (!hasValidAuth()) {
-        console.log('🔓 AuthInitializer: No token found in cookies, skipping profile fetch');
-        return;
-      }
-      
-      // Try to determine the role from stored state before hydration
+
+      // Otherwise, try to restore session
       const storedUser = getStoredAuth();
       const currentRole = user?.role || storedUser?.role;
-      
+
       try {
-        // Pass the role if we have it to avoid the "guess and check" 401/403 cycle
         await fetchProfile(currentRole || undefined);
-        console.log('✅ AuthInitializer: Session restored successfully');
       } catch (error) {
-        console.error('❌ AuthInitializer: Failed to restore session', error);
+        // ignore errors
       }
     };
 

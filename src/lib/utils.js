@@ -65,7 +65,7 @@ export const scrubStorage = () => {
  * Checks for actual token cookies OR a persisted authenticated state in auth-storage.
  */
 export const hasValidAuth = () => {
-  if (typeof document === 'undefined') return false;
+  if (typeof window === 'undefined') return false;
 
   // 1. Check for explicit token cookies (non-httpOnly ones)
   const token = cookieStorage.getItem('token') ||
@@ -73,16 +73,25 @@ export const hasValidAuth = () => {
     cookieStorage.getItem('jwt');
   if (token && token !== 'undefined' && token !== 'null') return true;
 
-  // 2. Check auth-storage if it indicates a previous authenticated session
-  const authStorage = cookieStorage.getItem('auth-storage');
-  if (authStorage) {
+  // 2. Check for auth-storage in COOKIES
+  const authCookie = cookieStorage.getItem('auth-storage');
+  if (authCookie) {
     try {
-      const parsed = JSON.parse(authStorage);
+      const parsed = JSON.parse(authCookie);
       const state = parsed.state || parsed;
-      // ONLY return true if the persisted state says we ARE authenticated
-      return !!(state && state.isAuthenticated && state.user);
-    } catch (e) {
-      return false;
+      if (state && state.isAuthenticated && state.user) return true;
+    } catch (e) { }
+  }
+
+  // 3. Check for auth-storage in LOCALSTORAGE (Fallback for large state)
+  if (typeof localStorage !== 'undefined') {
+    const localS = localStorage.getItem('auth-storage');
+    if (localS) {
+      try {
+        const parsed = JSON.parse(localS);
+        const state = parsed.state || parsed;
+        if (state && state.isAuthenticated && state.user) return true;
+      } catch (e) { }
     }
   }
 

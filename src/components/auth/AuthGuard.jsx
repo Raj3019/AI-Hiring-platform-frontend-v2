@@ -57,17 +57,17 @@ export default function AuthGuard({ children, allowedRoles }) {
   // Debug logging
   useEffect(() => {
     if (mounted) {
-      console.log('🔒 AuthGuard Debug:', {
-        pathname,
-        rawRole: user?.role,
-        normalizedRole: userRole,
-        allowedRoles,
-        isAuthenticated,
-        isAllowed,
-        hasUser: !!user,
-        hasToken: hasValidAuth(),
-        isHydrating
-      });
+      // console.log('🔒 AuthGuard Debug:', {
+      //   pathname,
+      //   rawRole: user?.role,
+      //   normalizedRole: userRole,
+      //   allowedRoles,
+      //   isAuthenticated,
+      //   isAllowed,
+      //   hasUser: !!user,
+      //   hasToken: hasValidAuth(),
+      //   isHydrating
+      // });
     }
   }, [mounted, user?.role, userRole, pathname, allowedRoles, isAuthenticated, isAllowed, user, isHydrating]);
 
@@ -85,7 +85,7 @@ export default function AuthGuard({ children, allowedRoles }) {
       
       // If token exists but store not hydrated yet, try to fetch profile (auto-detect)
       if (hasValidAuth() && !isAuthenticated) {
-        console.log('🔄 Token found in cookies but store not hydrated, attempting to restore session (auto)...');
+        // console.log('🔄 Token found in cookies but store not hydrated, attempting to restore session (auto)...');
         
         // Try to get stored role to avoid noisy 401s
         const storedUser = getStoredAuth();
@@ -105,7 +105,7 @@ export default function AuthGuard({ children, allowedRoles }) {
 
     // Double-check: if token exists but somehow not authenticated, don't redirect yet
     if (!isAuthenticated && hasValidAuth()) {
-      console.log('⏳ Token exists but not authenticated yet, waiting...');
+      // console.log('⏳ Token exists but not authenticated yet, waiting...');
       return;
     }
 
@@ -144,7 +144,7 @@ export default function AuthGuard({ children, allowedRoles }) {
       );
     }
     
-    console.log('🔒 AuthGuard: Showing loader', { isAuthenticated, isAllowed });
+    // console.log('🔒 AuthGuard: Showing loader', { isAuthenticated, isAllowed });
     return (
       <div className="h-screen w-full flex items-center justify-center bg-neo-bg dark:bg-zinc-950">
         <Loader2 className="w-10 h-10 animate-spin text-neo-yellow" />
@@ -152,6 +152,6 @@ export default function AuthGuard({ children, allowedRoles }) {
     );
   }
 
-  console.log('🔒 AuthGuard: Rendering children');
+  // console.log('🔒 AuthGuard: Rendering children');
   return children;
 }

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { NeoButton, NeoCard, NeoInput } from '@/components/ui/neo';
-import { Briefcase, User, Eye, EyeOff } from 'lucide-react';
+import { Briefcase, User, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { cn, cookieStorage, hasValidAuth } from '@/lib/utils';
 
 // Create a component that uses useSearchParams
@@ -46,7 +46,7 @@ function LoginForm() {
           if (storedRole) {
             const isRec = storedRole === 'recruiter' || storedRole === 'recuter';
             const redirectTo = isRec ? '/recruiter/dashboard' : '/candidate/dashboard';
-            console.log('Login page: redirecting from cookie:', { storedRole, redirectTo });
+            // console.log('Login page: redirecting from cookie:', { storedRole, redirectTo });
             router.replace(redirectTo);
             return;
           }
@@ -71,7 +71,7 @@ function LoginForm() {
       const userRole = user?.role?.toLowerCase();
       const isRecruiterRole = userRole === 'recruiter' || userRole === 'recuter';
       const redirectTo = isRecruiterRole ? '/recruiter/dashboard' : '/candidate/dashboard';
-      console.log('Login page redirecting:', { userRole, redirectTo });
+      // console.log('Login page redirecting:', { userRole, redirectTo });
       router.replace(redirectTo);
     }
   }, [mounted, isAuthenticated, user, router, isRecruiter, fetchProfile]);
@@ -103,7 +103,26 @@ function LoginForm() {
     }
   };
 
-  if (!mounted || hasValidAuth()) return null;
+  // Block rendering while we are initializing auth and redirecting
+  if (!mounted) return <div className="min-h-screen bg-neo-bg"></div>;
+  
+  // If we definitely have auth, don't show the form
+  if (isAuthenticated && user) {
+    return (
+      <div className="min-h-screen bg-neo-bg dark:bg-zinc-950 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-neo-yellow" />
+      </div>
+    );
+  }
+
+  // If we have a hint that we might be auth (cookie exists), also hide the form while we verify
+  if (hasValidAuth()) {
+    return (
+      <div className="min-h-screen bg-neo-bg dark:bg-zinc-950 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-neo-yellow" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-neo-bg dark:bg-zinc-950 p-4 transition-colors">

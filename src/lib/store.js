@@ -18,15 +18,15 @@ export const useAuthStore = create(
           const api = (role?.toLowerCase() === 'recruiter' || role?.toLowerCase() === 'recuter') ? recruiterAPI : employeeAPI;
           const response = await api.login(email, password);
 
-          console.log('Login response:', response);
+          // console.log('Login response:', response);
 
           // Try to fetch user profile after successful login - cookies are now handled by browser
           let profileData = null;
           try {
             profileData = await api.getProfile();
-            console.log('Profile response:', profileData);
+            // console.log('Profile response:', profileData);
           } catch (profileError) {
-            console.error('Profile fetch failed:', profileError);
+            //  console.error('Profile fetch failed:', profileError);
             // Continue with basic user data if profile fetch fails
           }
 
@@ -47,7 +47,7 @@ export const useAuthStore = create(
             isAuthenticated: true,
           };
 
-          console.log('User object after login:', { role: user.role, email, userRole });
+          // console.log('User object after login:', { role: user.role, email, userRole });
           set({ user, isAuthenticated: true, isLoading: false });
           return { success: true, user };
         } catch (error) {

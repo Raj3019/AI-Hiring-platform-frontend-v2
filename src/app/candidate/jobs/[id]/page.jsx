@@ -102,16 +102,35 @@ export default function JobDetailsPage() {
     fetchJobData();
   }, [params.id, jobs, user]);
 
+  const getJobDataList = (fieldBase) => {
+    if (!job) return [];
+    // Check plural and singular versions
+    const variations = [fieldBase, fieldBase.replace(/s$/, ''), fieldBase + 's'];
+    // For 'jobRequirements', also check 'requirements'
+    if (fieldBase === 'jobRequirements') {
+        variations.push('requirements', 'requirement');
+    }
+    
+    for (const key of variations) {
+        const val = job[key];
+        if (Array.isArray(val) && val.length > 0) return val;
+        if (typeof val === 'string' && val.trim()) {
+            return val.split(',').map(s => s.trim()).filter(s => s !== '');
+        }
+    }
+    return [];
+  };
+
   // Check if user has a profile resume - separate effect to run on user changes
   useEffect(() => {
     if (user) {
       // Debug: Log all possible resume fields
-      console.log('📄 Resume fields check:', {
-        resume: user.resume,
-        resumeUrl: user.resumeUrl,
-        resumeFileURL: user.resumeFileURL,
-        fullUser: user
-      });
+      // console.log('📄 Resume fields check:', {
+      //   resume: user.resume,
+      //   resumeUrl: user.resumeUrl,
+      //   resumeFileURL: user.resumeFileURL,
+      //   fullUser: user
+      // });
       
       // Check all possible field names for resume
       const profileResume = user.resume || user.resumeUrl || user.resumeFileURL;
@@ -318,11 +337,37 @@ export default function JobDetailsPage() {
                 <NeoCard className="prose prose-lg max-w-none font-mono dark:prose-invert">
                     <h3 className="font-black text-xl uppercase border-b-4 border-neo-black dark:border-white pb-2 mb-4 dark:text-white">Overview</h3>
                     <p className="whitespace-pre-line text-gray-800 dark:text-gray-300">{job.description || 'We are looking for a talented professional to join our team. Must have relevant experience and a passion for excellence.'}</p>
+                    
+                    {/* Job Requirements moved here */}
+                    {(() => {
+                        const requirements = job.jobRequirements || job.jobRequirement || job.requirements || job.requirement;
+                        if (!requirements || (Array.isArray(requirements) && requirements.length === 0)) return null;
+                        
+                        return (
+                            <div className="mt-8 border-t-2 border-dashed border-gray-200 dark:border-zinc-700 pt-6">
+                                <h4 className="font-black text-lg uppercase mb-4 dark:text-white">Key Requirements & Responsibilities</h4>
+                                {Array.isArray(requirements) ? (
+                                    <ul className="space-y-3 not-prose">
+                                        {requirements.map((requirement, i) => (
+                                            <li key={`req-${i}`} className="flex items-start gap-3">
+                                                <span className="text-neo-green text-xl font-black">✓</span>
+                                                <span className="dark:text-white">{requirement}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <div className="font-mono text-sm leading-relaxed whitespace-pre-line dark:text-gray-300">
+                                        {requirements}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
                 </NeoCard>
 
                 {/* Requirements */}
                 <NeoCard>
-                    <h3 className="font-black text-xl uppercase border-b-4 border-neo-black dark:border-white pb-2 mb-4 dark:text-white">Requirements</h3>
+                    <h3 className="font-black text-xl uppercase border-b-4 border-neo-black dark:border-white pb-2 mb-4 dark:text-white">Qualifications</h3>
                     <ul className="space-y-3">
                         <li className="flex items-start gap-3">
                           <span className="text-neo-green text-xl font-black">✓</span>
@@ -330,22 +375,36 @@ export default function JobDetailsPage() {
                         </li>
                         <li className="flex items-start gap-3">
                           <span className="text-neo-green text-xl font-black">✓</span>
-                          <span className="font-bold dark:text-white">Education: {job.educationRequired || 'Bachelors Degree'}</span>
+                          <span className="font-bold dark:text-white">Education: {job.educationRequired || job.education || 'Bachelors Degree'}</span>
                         </li>
-                        {(job.skillsRequired || ['React', 'TypeScript', 'GenAI']).map((skill, i) => (
-                          <li key={i} className="flex items-start gap-3">
-                            <span className="text-neo-green text-xl font-black">✓</span>
-                            <span className="dark:text-white">{skill}</span>
-                          </li>
-                        ))}
                     </ul>
                 </NeoCard>
+
+                {/* Skills */}
+                {getJobDataList('skillsRequired').length > 0 && (
+                  <NeoCard>
+                      <h3 className="font-black text-xl uppercase border-b-4 border-neo-black dark:border-white pb-2 mb-4 dark:text-white">Skills Required</h3>
+                      <div className="flex flex-wrap gap-3">
+                        {getJobDataList('skillsRequired').map((skill, i) => (
+                           <div key={`skill-${i}`} className="flex items-center bg-gray-50 dark:bg-zinc-800 border-2 border-neo-black dark:border-white px-4 py-2 font-bold shadow-neo-sm transform hover:-translate-y-1 transition-transform">
+                              <span className="text-neo-blue mr-2 text-xl">⚙</span>
+                              <span className="dark:text-white uppercase text-xs">{skill}</span>
+                           </div>
+                        ))}
+                      </div>
+                  </NeoCard>
+                )}
 
                 {/* Benefits */}
                 <NeoCard>
                     <h3 className="font-black text-xl uppercase border-b-4 border-neo-black dark:border-white pb-2 mb-4 dark:text-white">Benefits</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {(job.benefits || ['Health', 'Dental', '401k']).map((benefit, i) => (
+                        {getJobDataList('benefits').length > 0 ? getJobDataList('benefits').map((benefit, i) => (
+                            <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 border-2 border-gray-200 dark:border-zinc-700">
+                                <span className="text-neo-yellow text-xl">★</span>
+                                <span className="font-bold text-sm dark:text-white">{benefit}</span>
+                            </div>
+                        )) : (job.benefits || ['Health', 'Dental', '401k']).map((benefit, i) => (
                             <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 border-2 border-gray-200 dark:border-zinc-700">
                                 <span className="text-neo-yellow text-xl">★</span>
                                 <span className="font-bold text-sm dark:text-white">{benefit}</span>

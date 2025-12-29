@@ -92,8 +92,9 @@ const NavbarContent = () => {
       return (
         <>
           <Link href={isRecruiterMode ? "/?mode=recruiter" : "/"} className={baseClass}>HOME</Link>
-          <Link href={isRecruiterMode ? "/?mode=recruiter#pricing" : "/#pricing"} className={baseClass}>PRICING</Link>
+          <Link href={isRecruiterMode ? "/?mode=recruiter#about" : "/about"} className={baseClass}>ABOUT</Link>
           <Link href={isRecruiterMode ? "/?mode=recruiter#features" : "/#features"} className={baseClass}>FEATURES</Link>
+          <Link href={isRecruiterMode ? "/?mode=recruiter#pricing" : "/#pricing"} className={baseClass}>PRICING</Link>
           
           <div className={mobile ? "my-4" : "inline-block ml-2"}>
             <NeoButton 

@@ -44,7 +44,7 @@ function RegisterForm() {
           if (storedRole) {
             const isRec = storedRole === 'recruiter' || storedRole === 'recuter';
             const redirectTo = isRec ? '/recruiter/dashboard' : '/candidate/dashboard';
-            console.log('Register page: redirecting from cookie:', { storedRole, redirectTo });
+            //console.log('Register page: redirecting from cookie:', { storedRole, redirectTo });
             router.replace(redirectTo);
             return;
           }
@@ -104,7 +104,10 @@ function RegisterForm() {
     }
   };
 
-  if (!mounted || hasValidAuth()) return null;
+  // Block rendering if mounted and already authenticated (from store OR cookies)
+  if (!mounted) return null;
+  if (isAuthenticated && user) return null;
+  if (hasValidAuth()) return null;
 
   return (
     <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-neo-bg dark:bg-zinc-950 p-4 transition-colors text-neo-black">

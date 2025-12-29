@@ -27,6 +27,21 @@ export default function JobDetailsPage() {
     return salary;
   };
 
+  const getJobDataList = (fieldBase) => {
+    if (!job) return [];
+    const variations = [fieldBase, fieldBase.replace(/s$/, ''), fieldBase + 's'];
+    if (fieldBase === 'jobRequirements') variations.push('requirements', 'requirement');
+    
+    for (const key of variations) {
+        const val = job[key];
+        if (Array.isArray(val) && val.length > 0) return val;
+        if (typeof val === 'string' && val.trim()) {
+            return val.split(',').map(s => s.trim()).filter(s => s !== '');
+        }
+    }
+    return [];
+  };
+
   if (loading) {
     return <div className="container mx-auto py-12">Loading...</div>;
   }
@@ -52,22 +67,43 @@ export default function JobDetailsPage() {
           </div>
         </div>
         <p className="mb-4 text-gray-800">{job.description}</p>
-        <div className="mb-4">
-          <h3 className="font-bold mb-2">Skills Required:</h3>
-          <div className="flex gap-2 flex-wrap">
-            {job.skillsRequired?.map((req) => (
-              <span key={req} className="bg-gray-200 px-2 py-1 text-xs font-bold border border-neo-black">{req}</span>
+        <div className="mb-6 border-t pt-4">
+          <h3 className="font-black text-xl mb-3 text-neo-black uppercase tracking-tight">Technical Skills</h3>
+          <div className="flex gap-3 flex-wrap">
+            {getJobDataList('skillsRequired').map((req) => (
+              <span key={req} className="bg-neo-blue/10 text-neo-blue px-3 py-1.5 text-xs font-black border-2 border-neo-blue shadow-[2px_2px_0px_0px_rgba(0,163,255,1)] uppercase">{req}</span>
             ))}
           </div>
         </div>
+        {(() => {
+          const requirements = job.jobRequirements || job.jobRequirement || job.requirements || job.requirement;
+          if (!requirements || (Array.isArray(requirements) && requirements.length === 0)) return null;
+
+          return (
+            <div className="mb-6 border-t pt-4">
+              <h3 className="font-black text-xl mb-3 text-neo-black uppercase tracking-tight">Job Requirements</h3>
+              {Array.isArray(requirements) ? (
+                <ul className="list-disc pl-5">
+                  {requirements.map((req, index) => (
+                    <li key={index} className="mb-1 text-gray-800">{req}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="font-mono text-sm leading-relaxed whitespace-pre-line text-gray-800 bg-gray-50 p-4 border-2 border-neo-black">
+                  {requirements}
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <div className="mb-4">
           <h3 className="font-bold mb-2">About the Role:</h3>
-          <p>{job.description}</p>
+          <p className="text-gray-800">{job.description}</p>
         </div>
         <div className="mb-4">
           <h3 className="font-bold mb-2">Benefits:</h3>
           <div className="flex gap-2 flex-wrap">
-            {job.benefits?.map((benefit) => (
+            {Array.isArray(job.benefits) && job.benefits.map((benefit) => (
               <span key={benefit} className="bg-gray-100 px-2 py-1 text-xs font-bold border border-neo-black">{benefit}</span>
             ))}
           </div>

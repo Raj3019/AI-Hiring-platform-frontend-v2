@@ -106,6 +106,7 @@ export default function CandidatesPage() {
                                  src={c.profilePicture} 
                                  alt={c.fullName}
                                  fill
+                                 sizes="48px"
                                  className="object-cover"
                                />
                              </div>

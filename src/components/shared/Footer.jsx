@@ -10,7 +10,7 @@ export default function Footer() {
                 <div className="max-w-md">
                     <h2 className="text-4xl font-black uppercase mb-4 text-neo-yellow">NeoHire AI</h2>
                     <p className="font-mono text-gray-400 mb-6">
-                        The world's first brutallly honest hiring platform powered by Gemini AI. 
+                        The world's first brutallly honest hiring platform powered by AI. 
                         No fluff, just results.
                     </p>
                 </div>

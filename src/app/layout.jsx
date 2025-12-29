@@ -3,6 +3,7 @@ import "./globals.css";
 import Navbar from "@/components/shared/Navbar";
 import ConditionalFooter from "@/components/shared/ConditionalFooter";
 import AuthInitializer from "@/components/auth/AuthInitializer";
+import ScrollToTop from "@/components/shared/ScrollToTop";
 
 export const metadata = {
   title: "NeoHire AI",
@@ -16,6 +17,7 @@ export default function RootLayout({ children }) {
           <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-sans antialiased flex flex-col min-h-screen">
+        <ScrollToTop />
         <AuthInitializer />
         <Navbar />
         <main className="flex-grow">

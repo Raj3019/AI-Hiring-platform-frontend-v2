@@ -426,9 +426,9 @@ export default function ProfilePage() {
     setIsUploading(true);
     
     try {
-      console.log('Uploading profile picture:', file.name, file.size);
+      // console.log('Uploading profile picture:', file.name, file.size);
       const res = await employeeAPI.updateProfilePicture(formData);
-      console.log('Profile picture upload response:', res);
+      // console.log('Profile picture upload response:', res);
       
       if(res.profilePicture) {
         updateProfile({ profilePicture: res.profilePicture });
@@ -436,11 +436,11 @@ export default function ProfilePage() {
         // Refresh profile to get latest data
         if (user?.role) await fetchProfile(user.role);
       } else {
-        console.warn('Profile picture URL not found in response:', res);
+        // console.warn('Profile picture URL not found in response:', res);
         setSuccessMessage('Profile picture uploaded but URL not received. Please refresh the page.');
       }
     } catch (error) {
-      console.error('Profile picture upload error:', error);
+      // console.error('Profile picture upload error:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to upload profile picture. Please try again.';
       setSuccessMessage(errorMessage);
     } 
@@ -489,9 +489,9 @@ export default function ProfilePage() {
     setIsUploading(true);
     
     try {
-        console.log('Uploading resume:', file.name, file.size);
+        // console.log('Uploading resume:', file.name, file.size);
         const res = await employeeAPI.updateResume(fileData);
-        console.log('Resume upload response:', res);
+        // console.log('Resume upload response:', res);
         
         // Backend returns { message: "...", resumeLink: "..." }
         const resumeUrl = res.resumeLink || res.resume || res.resumeUrl || res.url || res.data?.resume || res.resumeFileURL;
@@ -504,11 +504,11 @@ export default function ProfilePage() {
           // Refresh profile to get latest data
           if (user?.role) await fetchProfile(user.role);
         } else {
-          console.warn('Resume URL not found in response:', res);
+          // console.warn('Resume URL not found in response:', res);
           setSuccessMessage('Resume uploaded but URL not received. Please refresh the page.');
         }
     } catch (error) {
-      console.error('Resume upload error:', error);
+      // console.error('Resume upload error:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to upload resume. Please try again.';
       setSuccessMessage(errorMessage);
     } 
